@@ -7,8 +7,9 @@ or an absolute path to a clone).
   cat templates/agents-md-snippet.md >> /path/to/project/AGENTS.md
 
 Agents that read AGENTS.md (Codex, Cursor, Gemini CLI, Amp, and others)
-will pick these rules up automatically. Claude Code users don't need this
-file — install the skills directly instead (see README).
+will pick these rules up automatically. Agents with native SKILL.md
+support (e.g. Claude Code) don't need this snippet — they trigger skills
+from the frontmatter descriptions directly (see README).
 -->
 
 ## Development workflow skills

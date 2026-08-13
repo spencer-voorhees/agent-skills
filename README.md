@@ -1,43 +1,44 @@
 # agent-skills
 
-A suite of agent skills that form a repeatable development workflow — for
-Claude Code, Codex, Cursor, Gemini CLI, or any coding agent that can read a
-markdown file. The core idea: agent sessions are ephemeral, so the workflow
-revolves around a durable **context package** — a `docs/context/` directory
-of markdown files that every skill reads from and writes back to. Sessions
-come and go; the context compounds.
+A suite of agent skills that form a repeatable development workflow, usable
+by any coding agent that can read a markdown file. The core idea: agent
+sessions are ephemeral, so the workflow revolves around a durable **context
+package** — a `docs/context/` directory of markdown files that every skill
+reads from and writes back to. Sessions come and go; the context compounds.
 
-Each skill is a plain-markdown `SKILL.md` (instructions plus a name and a
-"when to use" description in frontmatter). Nothing in the skill bodies
-assumes a particular agent, model, or vendor — an agent just needs to read
-the file and follow it.
+Each skill is a plain-markdown `SKILL.md`: instructions plus a name and a
+"when to use" description in frontmatter. Nothing in the skills assumes a
+particular agent, model, or vendor — an agent just needs to read the file
+and follow it. Because all durable state lives in the target project's
+`docs/context/`, the workflow is also agent-interoperable: one session can
+end in one tool and the next can resume from the handoff file in another.
 
 ## The workflow
 
 ```
-┌──────────────────┐
-│ /context-package │  capture what, who, why, constraints
-└────────┬─────────┘
+┌─────────────────┐
+│ context-package │  capture what, who, why, constraints
+└────────┬────────┘
          ▼
-┌──────────────────┐
-│    /architect    │  stack, modules, data model, API strategy
-└────────┬─────────┘
+┌─────────────────┐
+│    architect    │  stack, modules, data model, API strategy
+└────────┬────────┘
          ▼
-┌──────────────────┐
-│  /design-system  │  tokens + component inventory (for UI projects)
-└────────┬─────────┘
+┌─────────────────┐
+│  design-system  │  tokens + component inventory (for UI projects)
+└────────┬────────┘
          ▼
-   build a milestone ──▶ ┌───────────┐
-         │               │  /review  │  check the diff against the context
-         │               └───────────┘
+   build a milestone ──▶ ┌──────────┐
+         │               │  review  │  check the diff against the context
+         │               └──────────┘
          ▼
-┌──────────────────┐
-│    /remember     │  persist decisions, learnings, handoff state
-└──────────────────┘
+┌─────────────────┐
+│    remember     │  persist decisions, learnings, handoff state
+└─────────────────┘
          │
          ▼  next session picks up 90-handoff.md and continues
 
-  (/recover — any time an agent is stuck in a loop)
+  (recover — any time an agent is stuck in a loop)
 ```
 
 ## The skills
@@ -72,32 +73,16 @@ of them); every skill may read all of them. The
 package must always read as *currently true* — history lives in the
 decision log, not in stale sections.
 
-## Installation
+## Using the skills
 
-### Claude Code
+The skills are instruction files; the only integration question is
+*triggering* — how your agent knows when to read which skill.
 
-As a plugin (recommended — gets all six skills at once, with automatic
-triggering):
+### Universal: AGENTS.md
 
-```
-/plugin marketplace add spencer-voorhees/agent-skills
-/plugin install dev-workflow@agent-skills
-```
-
-Or copy individual skills into a project (`.claude/skills/`) or your user
-profile (`~/.claude/skills/`):
-
-```bash
-cp -r skills/architect /path/to/project/.claude/skills/
-```
-
-### Any other agent (Codex, Cursor, Gemini CLI, Amp, …)
-
-The skills are plain markdown, so the only thing to wire up is *triggering*
-— telling your agent when to go read which skill. For agents that read
-`AGENTS.md` (most do), vendor or clone this repo somewhere your agent can
-reach, then append the provided snippet to the project's `AGENTS.md` and
-set the path inside it:
+Most coding agents read `AGENTS.md` from the project root. Vendor or clone
+this repo somewhere your agent can reach, then append the provided snippet
+to the target project's `AGENTS.md` and set the path inside it:
 
 ```bash
 git clone https://github.com/spencer-voorhees/agent-skills vendor/agent-skills
@@ -106,21 +91,42 @@ cat vendor/agent-skills/templates/agents-md-snippet.md >> AGENTS.md
 
 The snippet maps each trigger ("before any commit…", "when stuck…") to the
 skill file to read, and adds the session habits (read the handoff file at
-session start, run remember at session end).
+session start, run remember at session end). The same content works in any
+other rules mechanism (Cursor rules, Gemini's GEMINI.md, and so on).
 
-For agents with their own rules mechanism (e.g. Cursor rules), the same
-snippet content works there. And with any agent at all, zero setup also
-works: point it at a skill directly — *"Read vendor/agent-skills/skills/architect/SKILL.md
-and follow it."*
+### Zero setup
+
+Point any agent at a skill directly:
+
+> Read vendor/agent-skills/skills/architect/SKILL.md and follow it.
+
+### Native skill support
+
+Agents that support the `SKILL.md` convention natively trigger skills from
+the frontmatter descriptions automatically. Claude Code can install the
+whole suite as a plugin —
+
+```
+/plugin marketplace add spencer-voorhees/agent-skills
+/plugin install dev-workflow@agent-skills
+```
+
+— or take individual skills copied into `.claude/skills/` (project) or
+`~/.claude/skills/` (user). Other skill-aware agents can consume the
+`skills/<name>/` directories the same way; the `.claude-plugin/` manifests
+are just that one adapter and can be ignored by everything else.
 
 ## A typical project, day by day
 
-1. **Day 1**: `/context-package` interviews you and writes the brief,
-   requirements, and constraints. `/architect` turns those into a buildable
-   plan with milestones. For UI projects, `/design-system` locks in tokens.
+1. **Day 1**: `context-package` interviews you and writes the brief,
+   requirements, and constraints. `architect` turns those into a buildable
+   plan with milestones. For UI projects, `design-system` locks in tokens.
 2. **Build sessions**: each session reads `90-handoff.md`, builds the next
-   milestone, runs `/review` on the diff before committing, and ends with
-   `/remember`.
-3. **When things go sideways**: `/recover` stops the flailing, audits
+   milestone, runs `review` on the diff before committing, and ends with
+   `remember`.
+3. **When things go sideways**: `recover` stops the flailing, audits
    assumptions, and either finds the false belief or escalates to you with
    a real diagnosis instead of "I'm stuck".
+
+Commit `docs/context/` changes together with the code they describe — the
+package is only trustworthy if it moves in lockstep with the repo.
