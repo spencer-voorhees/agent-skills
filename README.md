@@ -75,46 +75,51 @@ decision log, not in stale sections.
 
 ## Using the skills
 
-The skills are instruction files; the only integration question is
-*triggering* — how your agent knows when to read which skill.
+`SKILL.md` is now a cross-agent standard: the major tools all read the same
+format, each from its own directory. This repo is also a valid
+[Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec)
+package (`plugin.json` + `skills/`), the vendor-neutral format backed by
+Amazon, Cursor, Google, Microsoft, OpenAI, and Vercel — clients that
+support it can install the repo directly.
 
-### Universal: AGENTS.md
-
-Most coding agents read `AGENTS.md` from the project root. Vendor or clone
-this repo somewhere your agent can reach, then append the provided snippet
-to the target project's `AGENTS.md` and set the path inside it:
+For everything else, `install.sh` copies the skills into the directory
+your tool reads:
 
 ```bash
-git clone https://github.com/spencer-voorhees/agent-skills vendor/agent-skills
-cat vendor/agent-skills/templates/agents-md-snippet.md >> AGENTS.md
+git clone https://github.com/spencer-voorhees/agent-skills
+cd your-project
+path/to/agent-skills/install.sh <flavor>
 ```
 
-The snippet maps each trigger ("before any commit…", "when stuck…") to the
-skill file to read, and adds the session habits (read the handoff file at
-session start, run remember at session end). The same content works in any
-other rules mechanism (Cursor rules, Gemini's GEMINI.md, and so on).
+| Flavor | Tool | Installs to |
+|---|---|---|
+| `agents` (default) | vendor-neutral — read by Cursor, Gemini CLI, and others | `.agents/skills/` |
+| `claude` | Claude Code | `.claude/skills/` |
+| `codex` | OpenAI Codex CLI | `.codex/skills/` |
+| `gemini` | Gemini CLI | `.gemini/skills/` |
+| `copilot` | GitHub Copilot | `.github/skills/` |
+| `cursor` | Cursor | `.cursor/skills/` |
+| `agentsmd` | anything that reads `AGENTS.md` | appends the trigger snippet |
 
-### Zero setup
+The files are identical in every flavor — only the location differs. In
+all the skill-aware tools, triggering is automatic from the frontmatter
+descriptions.
 
-Point any agent at a skill directly:
+Extras for specific tools:
 
-> Read vendor/agent-skills/skills/architect/SKILL.md and follow it.
-
-### Native skill support
-
-Agents that support the `SKILL.md` convention natively trigger skills from
-the frontmatter descriptions automatically. Claude Code can install the
-whole suite as a plugin —
-
-```
-/plugin marketplace add spencer-voorhees/agent-skills
-/plugin install dev-workflow@agent-skills
-```
-
-— or take individual skills copied into `.claude/skills/` (project) or
-`~/.claude/skills/` (user). Other skill-aware agents can consume the
-`skills/<name>/` directories the same way; the `.claude-plugin/` manifests
-are just that one adapter and can be ignored by everything else.
+- **Claude Code** can alternatively install via its plugin system
+  (`/plugin marketplace add spencer-voorhees/agent-skills`, then
+  `/plugin install dev-workflow@agent-skills`) — that's what
+  `.claude-plugin/` is for.
+- **Cursor** also reads `.agents/`, `.claude/`, and `.codex/` skill
+  directories, so any of those installs covers it too.
+- **Agents without skill support**: the `agentsmd` flavor appends
+  [`templates/agents-md-snippet.md`](templates/agents-md-snippet.md) to
+  your `AGENTS.md` — a table mapping each trigger ("before any commit…",
+  "when stuck…") to the skill file to read, plus the session habits. The
+  same content works in any other rules mechanism.
+- **Zero setup**, works with any agent at all: point it at a skill
+  directly — *"Read agent-skills/skills/architect/SKILL.md and follow it."*
 
 ## A typical project, day by day
 
