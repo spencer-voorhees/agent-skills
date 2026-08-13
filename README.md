@@ -1,10 +1,16 @@
 # agent-skills
 
-A suite of Claude Code skills that form a repeatable development workflow.
-The core idea: agent sessions are ephemeral, so the workflow revolves around
-a durable **context package** — a `docs/context/` directory of markdown files
-that every skill reads from and writes back to. Sessions come and go; the
-context compounds.
+A suite of agent skills that form a repeatable development workflow — for
+Claude Code, Codex, Cursor, Gemini CLI, or any coding agent that can read a
+markdown file. The core idea: agent sessions are ephemeral, so the workflow
+revolves around a durable **context package** — a `docs/context/` directory
+of markdown files that every skill reads from and writes back to. Sessions
+come and go; the context compounds.
+
+Each skill is a plain-markdown `SKILL.md` (instructions plus a name and a
+"when to use" description in frontmatter). Nothing in the skill bodies
+assumes a particular agent, model, or vendor — an agent just needs to read
+the file and follow it.
 
 ## The workflow
 
@@ -68,19 +74,44 @@ decision log, not in stale sections.
 
 ## Installation
 
-**As a plugin** (recommended — gets all six skills at once):
+### Claude Code
+
+As a plugin (recommended — gets all six skills at once, with automatic
+triggering):
 
 ```
 /plugin marketplace add spencer-voorhees/agent-skills
 /plugin install dev-workflow@agent-skills
 ```
 
-**Or copy individual skills** into a project (`.claude/skills/`) or your
-user profile (`~/.claude/skills/`):
+Or copy individual skills into a project (`.claude/skills/`) or your user
+profile (`~/.claude/skills/`):
 
 ```bash
 cp -r skills/architect /path/to/project/.claude/skills/
 ```
+
+### Any other agent (Codex, Cursor, Gemini CLI, Amp, …)
+
+The skills are plain markdown, so the only thing to wire up is *triggering*
+— telling your agent when to go read which skill. For agents that read
+`AGENTS.md` (most do), vendor or clone this repo somewhere your agent can
+reach, then append the provided snippet to the project's `AGENTS.md` and
+set the path inside it:
+
+```bash
+git clone https://github.com/spencer-voorhees/agent-skills vendor/agent-skills
+cat vendor/agent-skills/templates/agents-md-snippet.md >> AGENTS.md
+```
+
+The snippet maps each trigger ("before any commit…", "when stuck…") to the
+skill file to read, and adds the session habits (read the handoff file at
+session start, run remember at session end).
+
+For agents with their own rules mechanism (e.g. Cursor rules), the same
+snippet content works there. And with any agent at all, zero setup also
+works: point it at a skill directly — *"Read vendor/agent-skills/skills/architect/SKILL.md
+and follow it."*
 
 ## A typical project, day by day
 
