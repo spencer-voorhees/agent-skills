@@ -1,0 +1,13 @@
+{
+  "name": "agent-skills",
+  "owner": {
+    "name": "Spencer Voorhees"
+  },
+  "plugins": [
+    {
+      "name": "dev-workflow",
+      "source": "./",
+      "description": "A repeatable agent development workflow: context package, architecture, design system, review, session memory, and stuck-loop recovery."
+    }
+  ]
+}
