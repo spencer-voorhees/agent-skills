@@ -23,15 +23,17 @@ docs/context/
 ├── 20-constraints.md    # stack constraints, non-goals, budgets
 ├── 30-architecture.md   # owned by the architect skill
 ├── 40-design-system.md  # owned by the design-system skill
-├── 50-decisions.md      # append-only decision log (fed by remember)
-├── 60-learnings.md      # conventions and gotchas (fed by remember)
-└── 90-handoff.md        # session handoff state (fed by remember)
+├── 50-decisions.md      # append-only decision log (any skill appends)
+├── 60-learnings.md      # conventions and gotchas (curated by remember)
+└── 90-handoff.md        # session handoff state (owned by remember)
 ```
 
 This skill owns files 00, 10, and 20. Never overwrite 30–90 — other skills
 own those. Create `50-decisions.md`, `60-learnings.md`, and `90-handoff.md`
-as empty stubs (a title line and a sentence describing their purpose) so the
-package is complete from day one.
+as stubs (a title line and a sentence describing the file's purpose) so the
+package is complete from day one. Note that any skill may append to the
+decision log — architect and design-system log their contested choices
+there too; remember just does the end-of-session sweep.
 
 ## Process
 
@@ -64,11 +66,17 @@ presenting it as fact.
 Keep each file short, factual, and skimmable. Every statement should be
 something a future agent can act on. No filler prose, no marketing language.
 State each fact in exactly one place — if requirements repeat the brief,
-future edits will let them drift apart.
+future edits will let them drift apart. When another file needs a fact it
+doesn't own, reference it ("see Non-goals in 20-constraints.md") instead of
+restating it.
 
-Mark anything unresolved as `OPEN QUESTION:` on its own line. An honest open
-question is far more useful than an invented requirement, because downstream
-skills treat these files as ground truth.
+Mark anything unresolved as `OPEN QUESTION:` on its own line, placed in the
+file that owns the underlying fact (scope questions in the brief, stack
+questions in constraints, and so on). Downstream files and skills reference
+an open question where it lives rather than copying it — one question, one
+location, so resolving it means editing one line. An honest open question is
+far more useful than an invented requirement, because downstream skills
+treat these files as ground truth.
 
 #### 00-brief.md template
 
@@ -120,7 +128,9 @@ reference them precisely.
 
 Summarize the package back to the user in a few sentences, listing the open
 questions explicitly. If a downstream step is the obvious next move (usually
-`architect`), say so.
+`architect`), say so. When running autonomously, fold this into your final
+report instead — the summary and the open-question list still matter, since
+they're what the user will scan to correct your guesses.
 
 ## Updating an existing package
 

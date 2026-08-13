@@ -49,6 +49,11 @@ E.g. "Calm: no more than one accent color per screen."]
 | --border | ... | ... | dividers, input borders |
 | --danger | ... | ... | destructive actions, errors |
 
+[This table is a floor, not a ceiling — add role tokens the product
+obviously needs (--success for a habit tracker, --warning for a monitor)
+at creation time, freely. Only *contradictions* of existing choices need a
+decision-log entry; additions don't.]
+
 ## Typography
 [Font stack(s) and a scale: size/weight/line-height per level
 (display, heading, body, small). Name each level.]
@@ -71,13 +76,19 @@ Small fixed sets — the point is that there are few choices.]
 
 ### 2. Tokens as code
 
-Write the tokens in whatever form the stack actually consumes, in the
-location the module map dictates — CSS custom properties, a Tailwind config,
-a theme object, design-token JSON. Include dark mode from day one if the
-platform can express it (it's cheap now and expensive to retrofit).
+Write the tokens in whatever form the stack actually consumes — CSS custom
+properties, a Tailwind config, a theme object, design-token JSON. Put the
+file where `30-architecture.md`'s module map dictates; if the module map
+doesn't reserve a spot, use the stack's conventional location and add it to
+the module map yourself, marked as owned by this skill — the location must
+end up recorded in exactly one place either way. Include dark mode from day
+one if the platform can express it (it's cheap now and expensive to
+retrofit).
 
-The document and the code must never disagree. If you change one, change the
-other in the same session.
+The document and the code must never disagree — and don't take that on
+faith: before finishing, mechanically compare the values in the doc's
+tables against the token code (grep the hex values and scale numbers on
+both sides). Eyeballing is how the two drift on day one.
 
 ## Semantic tokens, not raw values
 

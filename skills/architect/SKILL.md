@@ -29,6 +29,11 @@ If the repo already has code, read its structure before proposing anything.
 An architecture that ignores the existing codebase is a rewrite proposal, not
 an architecture — and rewrites need explicit user sign-off.
 
+When running autonomously, don't invent answers to questions the context
+package leaves open: make the conservative choice, and list the assumption
+under Risks & open questions with a pointer to the context file that owns
+the underlying question.
+
 ## Decision principles
 
 - **Boring technology wins.** Choose the most mainstream tool that satisfies
@@ -58,13 +63,20 @@ Write `docs/context/30-architecture.md` with this structure:
 | ...   | ...    | one line |
 
 ## System overview
-[A short mermaid diagram of the major pieces and how they talk,
-plus 2–3 sentences of prose.]
+[2–3 sentences of prose on the major pieces and how they talk. Add a short
+mermaid diagram when there are enough pieces for a picture to carry
+information a sentence can't — a two-box system doesn't need one.]
 
 ## Module map
 [The directory layout you intend, with one line per module saying what it
 owns and what it must not know about. This is the boundary contract that
-the review skill enforces later.]
+the review skill enforces later. If the project has a UI, reserve a
+location here for the design tokens file and mark it "owned by the
+design-system skill" — that skill needs a dictated home for its token code,
+not one it invents. Include repo scaffolding (.gitignore, README) in the
+map or in milestone 1 explicitly; anything the architecture asserts about
+the repo ("data/ is gitignored") must appear as a concrete file in a
+milestone, or it's fiction.]
 
 ## Data model
 [Entities, key fields, and relationships. Concrete enough to write the
@@ -94,15 +106,25 @@ fresh session should be able to start working from these alone.]
 - [anything unresolved, with what would resolve it]
 ```
 
-The test for "done" is: **an agent with only the context package and an empty
-repo could start building milestone 1 without asking a single question.**
-If a section wouldn't survive that test, it's not specific enough yet.
+The north star is: an agent with only the context package and an empty repo
+could start building milestone 1 without asking a single question. You can't
+truly simulate that fresh agent (you carry unwritten context in your head),
+so verify the checkable proxies before calling it done:
+
+- Build & run lists exact copy-pasteable commands.
+- The data model names every entity, field, and type — schema is derivable
+  without invention.
+- The API strategy is concrete enough that a new endpoint's URL, error
+  shape, and auth are determined, not chosen.
+- Milestone 1 names the files to be created.
 
 ## Record the decisions
 
 Append the genuinely contested choices (ones where a reasonable alternative
 lost) to `docs/context/50-decisions.md`, dated, with the alternative and the
-reason it lost. One line each. Uncontested defaults don't need entries.
+reason it lost. One line each. Uncontested defaults don't need entries. When
+running autonomously nothing gets literally contested, so use this bar
+instead: log the choices a reasonable reviewer would most likely challenge.
 
 ## Revising an existing architecture
 

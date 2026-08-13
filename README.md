@@ -56,12 +56,13 @@ docs/context/
 ├── 20-constraints.md    # stack constraints, non-goals          (context-package)
 ├── 30-architecture.md   # stack, modules, data, API strategy    (architect)
 ├── 40-design-system.md  # tokens, scales, component inventory   (design-system)
-├── 50-decisions.md      # append-only decision log              (remember)
+├── 50-decisions.md      # append-only decision log              (any skill appends)
 ├── 60-learnings.md      # curated gotchas & conventions         (remember)
 └── 90-handoff.md        # current working state, next steps     (remember)
 ```
 
-Each file has one owning skill; every skill may read all of them. The
+Each file has one owning skill (the decision log accepts appends from all
+of them); every skill may read all of them. The
 package must always read as *currently true* — history lives in the
 decision log, not in stale sections.
 
