@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Create or extend the project's reusable design system — semantic tokens, typography/spacing scales, and a component inventory — written to docs/architecture/design-system.md plus real token code in the codebase, so UI stays consistent across every session. Use whenever building or styling UI, adding components, or when the user says "design system", "make it look good/consistent/polished", "theme", "dark mode", or when buttons, colors, or spacing have started to drift between screens.
+description: Create or extend the project's reusable design system — semantic tokens, typography/spacing scales, and a component inventory — written to docs/architecture/design-system.md plus real token code in the codebase, so UI stays consistent across every session. Use whenever building or styling UI, adding components, creating themes, or when the user says "design system", "style this", "make it look good/polished", "theme", "dark mode", "UI components", "color tokens", or when buttons, colors, or spacing have started to drift between screens.
 ---
 
 # Design System (Tokens & Component Inventory)

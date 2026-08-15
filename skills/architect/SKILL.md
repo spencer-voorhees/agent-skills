@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Design the technical architecture, module boundaries, data models, and API strategy from project specs — writing system blueprints to docs/architecture/system-overview.md and logging significant decisions as ADRs in docs/adr/ so implementation sessions build from an approved plan instead of improvising. Use before starting implementation of any new app or major feature, and whenever the user says "architect", "plan the technical approach", "choose the stack", "design the API", "design the data model", or asks how the system should be structured.
+description: Design the technical architecture, module boundaries, data models, and API strategy from project specs — writing system blueprints to docs/architecture/system-overview.md and logging significant decisions as ADRs in docs/adr/ so implementation sessions build from an approved plan instead of improvising. Use before starting implementation of any new app or major feature, and whenever the user says "architect", "plan the technical approach", "choose the stack", "design the API", "design the data model", "how should we build this", "system design", "technical RFC", or asks how the system should be structured.
 ---
 
 # Architect (System Design & RFCs)

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review pending changes against the project's specifications, architecture, and design system — auditing correctness, acceptance criteria alignment, architecture drift, duplicate code, design-system violations, and tests — producing ranked findings with file:line references. Use before any commit, PR, or merge, whenever the user says "review", "check this", "look over my changes", or after completing a milestone or implementation task.
+description: Review pending changes against the project's specifications, architecture, and design system — auditing correctness, acceptance criteria alignment, architecture drift, duplicate code, design-system violations, and tests — producing ranked findings with file:line references. Use before any commit, PR, or merge, whenever the user says "review", "check this", "audit my code", "pre-commit check", "look over my changes", "is this ready to merge", or after completing a milestone or implementation task.
 ---
 
 # Review (Pre-Commit & PR Diff Audit)

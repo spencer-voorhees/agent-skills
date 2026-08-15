@@ -1,6 +1,6 @@
 ---
 name: remember
-description: Persist session decisions as Architectural Decision Records (ADRs in docs/adr/), record operational gotchas in docs/learnings.md, and output clean session handoffs / PR descriptions so future sessions resume seamlessly without merge conflicts. Use at the end of any working session, when the user says "wrap up", "save context", "remember this", "checkpoint", after major architectural decisions, or before opening a PR.
+description: Persist session decisions as Architectural Decision Records (ADRs in docs/adr/), record operational gotchas in docs/learnings.md, and output clean session handoffs / PR descriptions so future sessions resume seamlessly without merge conflicts. Use at the end of any working session, when the user says "wrap up", "save context", "remember this", "checkpoint", "save progress", "end session", "document our decision", "create an ADR", after major architectural choices, or before opening a PR.
 ---
 
 # Remember (ADR Recording & Session Memory)

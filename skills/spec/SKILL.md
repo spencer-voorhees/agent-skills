@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Author or update feature specifications and PRDs in docs/specs/ using Spec-Driven Development. Captures problem statements, user stories, checkable acceptance criteria (R1..Rn), constraints, and non-goals. Every technical design (architect) and implementation review (review) validates against these specs. Use at the start of any new project or feature, whenever the user wants to "spec out", "scope", "write a brief", "write a PRD", "capture requirements", or before building complex functionality.
+description: Author or update feature specifications and PRDs in docs/specs/ using Spec-Driven Development. Captures problem statements, user stories, checkable acceptance criteria (R1..Rn), constraints, and non-goals. Automatically scaffolds the docs/ directory structure if missing. Use at the start of any new project or feature, whenever the user says "build an app", "create a feature", "spec out", "scope", "write a brief", "write a PRD", "capture requirements", or before building functionality.
 ---
 
 # Spec (Spec-Driven Development)
@@ -43,6 +43,15 @@ If the `docs/` structure does not exist yet, scaffold the directories and stub
 the templates.
 
 ## Process
+
+### 0. Auto-scaffold if missing
+
+If `docs/` or `docs/specs/` does not exist in the project, automatically create:
+- `docs/specs/`
+- `docs/architecture/`
+- `docs/adr/`
+- `docs/learnings.md`
+- `.gitattributes` (with `docs/learnings.md merge=union` and `docs/specs/*.md merge=union`)
 
 ### 1. Inventory what already exists
 

@@ -1,6 +1,6 @@
 ---
 name: recover
-description: Break out of a stuck loop by halting the current approach, auditing assumptions against direct runtime evidence, and re-grounding in project specs and architecture before choosing a minimal discriminating step. Use when repeated attempts at the same problem keep failing, the same error keeps recurring, progress has stalled, or the user says "you're stuck", "you're going in circles", "stop and think", or "take a step back".
+description: Break out of a stuck loop by halting the current approach, auditing assumptions against direct runtime evidence, and re-grounding in project specs and architecture before choosing a minimal discriminating step. Use when repeated attempts at the same problem keep failing, the same error keeps recurring, progress has stalled, or the user says "you're stuck", "you're going in circles", "stop and think", "take a step back", "debug this systematically", or when debugging persistent errors.
 ---
 
 # Recover (Scientific Debugging & Loop Breaker)
