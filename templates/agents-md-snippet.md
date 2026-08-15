@@ -14,27 +14,26 @@ from the frontmatter descriptions directly (see README).
 
 ## Development workflow skills
 
-This project uses a skill-driven workflow. Each skill is a markdown
-instruction file; when a trigger below matches the task at hand, read the
-skill file completely and follow it. The skills share one contract: the
-`docs/context/` directory is the durable source of truth, and it must
-always be kept currently-true.
+This project uses a skill-driven development workflow.
+Each skill is a markdown instruction file; when a trigger below matches the
+task at hand, read the skill file completely and follow it. The skills share
+one contract: `docs/` is the durable source of truth (Specs, Architecture,
+ADRs, Design Tokens), kept currently-true and git-safe for multi-dev teams.
 
 Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 
 | When | Read and follow |
 |---|---|
-| Starting a project/feature; writing a brief, PRD, or requirements; no `docs/context/` exists yet | `SKILLS_PATH/context-package/SKILL.md` |
-| Choosing the stack, designing the API or data model, planning the technical approach — before implementing anything major | `SKILLS_PATH/architect/SKILL.md` |
-| Building or styling UI, adding components, theming, or when colors/spacing/buttons have drifted | `SKILLS_PATH/design-system/SKILL.md` |
-| Before any commit, PR, or merge; after finishing a milestone; the user asks for a review | `SKILLS_PATH/review/SKILL.md` |
-| Ending a working session, "wrap up" / "checkpoint", after a significant decision or hard-won discovery | `SKILLS_PATH/remember/SKILL.md` |
-| The same error has survived ~3 fix attempts, progress has stalled, or the user says you're stuck or going in circles | `SKILLS_PATH/recover/SKILL.md` |
+| Starting a project/feature; writing a spec or PRD; capturing user stories & acceptance criteria | `SKILLS_PATH/spec/SKILL.md` |
+| Choosing the stack, designing architecture, module boundaries, schema, API contracts, or system RFCs | `SKILLS_PATH/architect/SKILL.md` |
+| Building/styling UI, semantic tokens (W3C), typography/spacing scales, component inventory | `SKILLS_PATH/design-system/SKILL.md` |
+| Before any commit, PR, or merge; after finishing a milestone; auditing diffs against specs | `SKILLS_PATH/review/SKILL.md` |
+| Ending a session, "wrap up" / "checkpoint", logging an Architectural Decision Record (ADR), recording gotchas | `SKILLS_PATH/remember/SKILL.md` |
+| The same error has survived ~3 fix attempts, progress has stalled, or when stuck | `SKILLS_PATH/recover/SKILL.md` |
 
 Session habits, always in force:
 
-- At session start, read `docs/context/90-handoff.md` (if it exists) before
-  doing anything else, and skim the rest of `docs/context/`.
-- At session end, run the remember skill — unwritten context dies with the
-  session.
-- Commit `docs/context/` changes together with the code they describe.
+- At session start, check `docs/handoff.md` (if present) and skim recent ADRs in `docs/adr/`.
+- Never guess on architecture or tokens — follow `docs/architecture/` and use defined design tokens.
+- Review diffs (`review`) before committing to maintain acceptance criteria and code quality.
+- At session wrap-up, run `remember` to record decisions in `docs/adr/`, gotchas in `docs/learnings.md`, and generate a handoff / PR draft.

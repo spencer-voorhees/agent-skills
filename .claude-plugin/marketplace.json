@@ -7,7 +7,7 @@
     {
       "name": "dev-workflow",
       "source": "./",
-      "description": "A repeatable agent development workflow: context package, architecture, design system, review, session memory, and stuck-loop recovery."
+      "description": "A repeatable agent development workflow: spec-driven development, architecture blueprints, ADRs, semantic design tokens, pre-commit review, and loop-breaking recovery."
     }
   ]
 }

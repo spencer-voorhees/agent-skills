@@ -1,99 +1,94 @@
 ---
 name: recover
-description: Break out of a stuck loop by halting the current approach, auditing assumptions against direct evidence, and re-grounding in the context package before choosing a new smallest testable step. Use when repeated attempts at the same problem keep failing, the same error keeps coming back, progress has stalled, or the user says "you're stuck", "you're going in circles", "stop and think", or "take a step back".
+description: Break out of a stuck loop by halting the current approach, auditing assumptions against direct runtime evidence, and re-grounding in project specs and architecture before choosing a minimal discriminating step. Use when repeated attempts at the same problem keep failing, the same error keeps recurring, progress has stalled, or the user says "you're stuck", "you're going in circles", "stop and think", or "take a step back".
 ---
 
-# Recover
+# Recover (Scientific Debugging & Loop Breaker)
 
 ## Why this exists
 
-A stuck agent's failure mode is rarely lack of effort — it's repeating one
-approach with cosmetic variations while an early wrong assumption steers
-every attempt into the same wall. More tries make it worse: each failed edit
-mutates state and buries the original problem. The way out is to stop
-generating attempts and start auditing beliefs.
+A stuck agent's failure mode is rarely lack of effort—it is repeating one approach
+with superficial variations while a flawed underlying assumption steers every attempt
+into the same obstacle. Repeated edits on top of failed attempts pollute the codebase
+and obscure the root cause.
 
-## When to invoke this on yourself
+The path out is to **halt generation, clear workspace debris, and audit beliefs against evidence**.
 
-Don't wait for the user to say "you're stuck". Trigger it yourself when any
-of these are true:
+---
 
-- The same error has survived **3 attempts** to fix it.
-- You're editing the same file back and forth between states you've
-  already tried.
-- You can't say concretely why the *next* attempt will succeed where the
-  last one failed.
+## When to Invoke This Skill
 
-## The procedure
+Do not wait for the user to intervene. Trigger this skill automatically whenever:
+- The same error has survived **3 consecutive fix attempts**.
+- You find yourself oscillating edits in the same file between previously failed states.
+- You cannot explain concretely why your *next* attempt will succeed when prior attempts failed.
 
-### 1. Stop. Assess the wreckage.
+---
 
-No more fix attempts. First, check what state the attempts have left behind:
-run `git status` / `git diff` and look at what's been mutated. If the
-working tree has accumulated speculative edits from failed attempts,
-seriously consider reverting to the last known-good state — debugging on
-top of debris means chasing problems you created while stuck. Note anything
-worth keeping before you revert it.
+## The Recovery Protocol
 
-### 2. Write the stuck report
+### 1. Halt & Clear the Workspace
 
-In a scratch file (not the repo), write down:
+Stop attempting new fixes immediately.
+1. Run `git status` and `git diff` to inspect accumulated changes.
+2. If speculative, unverified edits have cluttered the working tree, **revert to the last known-clean state**. Debugging on top of broken debris creates phantom bugs.
+
+### 2. Formulate the Stuck Report
+
+In a temporary scratchpad, explicitly write out:
 
 ```markdown
 ## Goal
-[What success actually looks like — re-derive it from the original request,
-not from your current sub-task, which may itself be a wrong turn.]
+[What observable outcome defines success? Re-derive this from docs/specs/, not from a sub-task that might be a wrong turn.]
 
-## Attempts
-1. [what was tried] → [exact observed result — real error text, not memory]
-2. ...
+## Failed Attempts
+1. [What was tried] → [Exact error message or observed outcome]
+2. [What was tried] → [Exact error message or observed outcome]
 
-## Assumptions
-- [every belief the attempts relied on: "the config is being loaded",
-  "the error comes from X", "this API works like Y"]
+## Underlying Assumptions
+- [Assumption 1: e.g., "The auth header is present in the request"]
+- [Assumption 2: e.g., "The database migration ran successfully"]
+- [Assumption 3: e.g., "Library X supports option Y in v2.0"]
 ```
 
-Writing it out isn't ceremony — the loop lives in vague memory of what was
-tried, and it usually dissolves under the act of listing the attempts and
-noticing they were one idea in five costumes.
+*Writing this down exposes the loop:* most stuck cycles dissolve once you notice that 5 failed attempts were actually one assumption dressed in five different syntax costumes.
 
-### 3. Audit the assumptions
+### 3. Audit Assumptions Against Direct Evidence
 
-For each assumption, ask: **what direct evidence do I have?** "It should
-work that way" is not evidence. Verify the load-bearing ones firsthand:
-read the actual file on disk, print the actual runtime value, read the
-actual library source or docs, run the failing command in isolation. In a
-genuine stuck loop, one of these beliefs is almost always false — the goal
-of this step is to find which one.
+For every assumption, ask: **What empirical evidence proves this is true?**
+"It should work this way" is not evidence. Verify load-bearing beliefs firsthand:
+- Print the actual runtime value or inspected object.
+- Inspect the actual file or environment variable on disk.
+- Read the official library documentation or source code.
+- Run the failing sub-command in complete isolation.
 
-### 4. Re-ground in the context package
+### 4. Re-Ground in Project Context
 
-Re-read the relevant parts of `docs/context/` — especially `20-constraints.md`,
-`30-architecture.md`, and `60-learnings.md`. Check whether this exact gotcha
-is already recorded, whether the approach fights a documented constraint,
-and whether the sub-goal you've been grinding on even serves a requirement.
-Sometimes the recovery is realizing the whole sub-task is optional.
+Re-read the project's durable documentation:
+- **`docs/specs/`**: Is the sub-task you are struggling with even required for acceptance criteria?
+- **`docs/architecture/system-overview.md`**: Does the approach violate an architectural constraint or module boundary?
+- **`docs/adr/`**: Was a similar approach already evaluated and rejected?
+- **`docs/learnings.md`**: Is this exact gotcha already documented with a known workaround?
 
-### 5. Choose the smallest discriminating step
+### 5. Choose the Smallest Discriminating Step
 
-Pick the next action to **produce information, not to be the fix**: the
-smallest test that proves which surviving hypothesis is true — a five-line
-reproduction, one isolated command, one printed value. A step whose failure
-teaches nothing is another lap of the loop.
+Formulate the next action to **produce information rather than guessing a fix**:
+- Create a 5-line isolated reproduction script.
+- Execute a single unit test with verbose logging.
+- Add an assertion to check a boundary condition.
 
-### 6. Know when to escalate
+*A step whose failure teaches you nothing is simply another lap around the stuck loop.*
 
-After the audit, if two more evidence-driven attempts fail, or the blocker
-needs something only the user has (credentials, intent, a judgment call, a
-paid service) — stop and ask. Bring the stuck report: goal, attempts with
-results, assumptions with verdicts, and your best-guess diagnosis. That
-turns "I'm stuck" into a question the user can actually answer in one reply.
-Asking with evidence after a real audit isn't failure; burning an hour
-looping is.
+### 6. Constructive Escalation
 
-## Afterward
+If two evidence-driven attempts fail after the audit, or if the blocker requires external user input (credentials, access, or product trade-offs):
+- Stop and present the **Stuck Report** to the user: Goal, tested hypotheses, verified facts, and recommended next choices.
+- Turning "I'm stuck" into a structured diagnostic report allows the user to unblock you in a single response.
 
-Once unstuck, append the gotcha to `docs/context/60-learnings.md` (one dated
-line: symptom → real cause → fix) so no future session pays for this again.
-If the recovery reversed a documented decision or revealed a stale
-architecture section, update the package per the **remember** skill.
+---
+
+## Post-Recovery Wrap-up
+
+Once the issue is resolved:
+1. Record the gotcha in `docs/learnings.md` (Symptom $\rightarrow$ Root Cause $\rightarrow$ Fix) so no future session wastes time on it.
+2. If resolving the blocker required changing an architectural pattern, invoke **remember** to document the decision in `docs/adr/`.

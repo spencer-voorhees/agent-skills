@@ -1,18 +1,20 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-workflow",
-  "version": "0.1.0",
-  "description": "A repeatable agent development workflow: context package, architecture, design system, review, session memory, and stuck-loop recovery.",
+  "version": "0.2.0",
+  "description": "A repeatable agent development workflow: spec-driven development, architecture blueprints, ADRs, semantic design tokens, pre-commit review, and loop-breaking recovery.",
   "author": {
     "name": "Spencer Voorhees"
   },
   "repository": "https://github.com/spencer-voorhees/agent-skills",
   "keywords": [
     "workflow",
-    "context-package",
+    "spec-driven-development",
     "architecture",
-    "design-system",
+    "adr",
+    "design-tokens",
     "code-review",
-    "session-memory"
+    "session-memory",
+    "debugging"
   ]
 }

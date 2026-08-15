@@ -1,0 +1,4 @@
+# Multi-Developer Merge Drivers for Docs-as-Code
+# Automatically merge concurrent appends to documentation and learnings logs without conflicts
+docs/learnings.md merge=union
+docs/specs/*.md merge=union

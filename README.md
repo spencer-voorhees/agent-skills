@@ -1,137 +1,136 @@
 # agent-skills
 
-A suite of agent skills that form a repeatable development workflow, usable
-by any coding agent that can read a markdown file. The core idea: agent
-sessions are ephemeral, so the workflow revolves around a durable **context
-package** — a `docs/context/` directory of markdown files that every skill
-reads from and writes back to. Sessions come and go; the context compounds.
+A suite of vendor-neutral agent skills that form a repeatable, durable software development workflow across AI coding agents. 
 
-Each skill is a plain-markdown `SKILL.md`: instructions plus a name and a
-"when to use" description in frontmatter. Nothing in the skills assumes a
-particular agent, model, or vendor — an agent just needs to read the file
-and follow it. Because all durable state lives in the target project's
-`docs/context/`, the workflow is also agent-interoperable: one session can
-end in one tool and the next can resume from the handoff file in another.
+The workflow is built on three practical principles:
+1. **Spec-Driven Development**: Requirements, user stories (`R1..Rn`), and checkable acceptance criteria are defined before implementation begins.
+2. **Docs-as-Code & ADRs**: Technical designs and architectural decisions live in the repository as discrete, version-controlled markdown documents (Architectural Decision Records).
+3. **Multi-Developer & Git-Safe**: Context is organized into discrete files per feature and decision, ensuring multiple engineers and autonomous agents can work and merge PRs concurrently with **zero git merge conflicts**.
 
-## The workflow
+Each skill is a standalone `SKILL.md` with YAML frontmatter conforming to the [Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec) specification. Works out-of-the-box with **Claude Code, Cursor, Gemini CLI, OpenAI Codex CLI, GitHub Copilot, Antigravity**, and any tool that reads markdown instructions.
+
+---
+
+## The Workflow
 
 ```
-┌─────────────────┐
-│ context-package │  capture what, who, why, constraints
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│    architect    │  stack, modules, data model, API strategy
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│  design-system  │  tokens + component inventory (for UI projects)
-└────────┬────────┘
-         ▼
-   build a milestone ──▶ ┌──────────┐
-         │               │  review  │  check the diff against the context
-         │               └──────────┘
-         ▼
-┌─────────────────┐
-│    remember     │  persist decisions, learnings, handoff state
-└─────────────────┘
-         │
-         ▼  next session picks up 90-handoff.md and continues
+┌──────────────┐
+│     spec     │  PRD, user stories (R1, R2), checkable acceptance criteria
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│  architect   │  system RFC, module boundaries, API strategy, initial ADRs
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│design-system │  W3C semantic tokens + component inventory (for UI)
+└──────┬───────┘
+       ▼
+  build milestone ──▶ ┌──────────┐
+       │              │  review  │  6-stage audit: correctness, spec alignment,
+       │              └──────────┘  arch drift, duplication, tokens, tests
+       ▼
+┌──────────────┐
+│   remember   │  record ADRs, curate runbook, generate handoff / PR draft
+└──────────────┘
+       │
+       ▼  next session or reviewer picks up handoff / PR description
 
-  (recover — any time an agent is stuck in a loop)
+  (recover — triggered automatically when stuck in a debugging loop)
 ```
 
-## The skills
+---
 
-| Skill | What it does |
-|---|---|
-| [`context-package`](skills/context-package/SKILL.md) | Builds the source-of-truth markdown files: brief, requirements, constraints. |
-| [`architect`](skills/architect/SKILL.md) | Designs the technical architecture from the context package — so the API strategy is never undefined. |
-| [`design-system`](skills/design-system/SKILL.md) | Creates semantic tokens and a component inventory — so buttons never drift. |
-| [`review`](skills/review/SKILL.md) | Reviews diffs against the context: correctness, requirement alignment, architecture drift, duplication, token violations. |
-| [`remember`](skills/remember/SKILL.md) | Writes session decisions, learnings, and working state back into the package — so context survives between sessions. |
-| [`recover`](skills/recover/SKILL.md) | Breaks stuck loops: halt, audit assumptions against evidence, re-ground in context, pick a discriminating next step. |
+## The Skills
 
-## The context package contract
+| Skill | Purpose | Output Location |
+|---|---|---|
+| [`spec`](skills/spec/SKILL.md) | Authors feature specifications, PRDs, and checkable acceptance criteria. | `docs/specs/<feature-slug>.md` |
+| [`architect`](skills/architect/SKILL.md) | Designs system architecture, module boundaries, data models, and API contracts. | `docs/architecture/system-overview.md` & `docs/adr/` |
+| [`design-system`](skills/design-system/SKILL.md) | Creates semantic design tokens and a component inventory. | `docs/architecture/design-system.md` + code tokens |
+| [`review`](skills/review/SKILL.md) | Audits pending diffs against specs, architecture, duplication, and tokens before commit. | Formatted pre-commit audit report |
+| [`remember`](skills/remember/SKILL.md) | Writes Architectural Decision Records (ADRs), curates gotchas, and formats handoffs/PRs. | `docs/adr/YYYY-MM-DD-*.md`, `docs/learnings.md`, `docs/handoff.md` |
+| [`recover`](skills/recover/SKILL.md) | Loop-breaker circuit breaker: clears workspace debris, audits assumptions vs evidence. | Minimal reproduction & diagnosis |
 
-All skills share one on-disk contract in the target project:
+---
+
+## The Docs-as-Code Repository Layout
+
+The skills enforce this standard layout in target projects:
 
 ```
-docs/context/
-├── 00-brief.md          # what, who, why, success criteria      (context-package)
-├── 10-requirements.md   # features, acceptance criteria         (context-package)
-├── 20-constraints.md    # stack constraints, non-goals          (context-package)
-├── 30-architecture.md   # stack, modules, data, API strategy    (architect)
-├── 40-design-system.md  # tokens, scales, component inventory   (design-system)
-├── 50-decisions.md      # append-only decision log              (any skill appends)
-├── 60-learnings.md      # curated gotchas & conventions         (remember)
-└── 90-handoff.md        # current working state, next steps     (remember)
+docs/
+├── specs/                          # Feature Specs / PRDs (owned by spec)
+│   ├── _template.md
+│   └── 2026-08-oauth-login.md
+├── architecture/                   # System Blueprints & Contracts
+│   ├── system-overview.md          # Stack, modules, API strategy (owned by architect)
+│   └── design-system.md            # Semantic tokens & component inventory (owned by design-system)
+├── adr/                            # Architectural Decision Records (MADR standard)
+│   ├── 0000-template.md
+│   ├── 0001-stack-selection.md     # (owned by architect and remember)
+│   └── 0002-sqlite-single-user.md
+├── learnings.md                    # Curated gotchas & team runbook (15-minute rule)
+└── handoff.md                      # Active session handoff (git-ignored / branch-scoped)
 ```
 
-Each file has one owning skill (the decision log accepts appends from all
-of them); every skill may read all of them. The
-package must always read as *currently true* — history lives in the
-decision log, not in stale sections.
+### Why This Prevents Merge Conflicts
+- **Discrete Decision Files (`docs/adr/`)**: Each decision is its own immutable file. Two developers creating decisions on different branches never collide at EOF.
+- **Feature-Scoped Specs (`docs/specs/`)**: Parallel feature branches maintain their own spec documents.
+- **Isolated Handoffs (`docs/handoff.md`)**: Handoffs are kept local or used as PR bodies, keeping the `main` branch git history clean.
+- **Union Merge Drivers**: Pre-configured `.gitattributes` automatically merges concurrent log appends.
 
-## Using the skills
+---
 
-`SKILL.md` is now a cross-agent standard: the major tools all read the same
-format, each from its own directory. This repo is also a valid
-[Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec)
-package (`plugin.json` + `skills/`), the vendor-neutral format backed by
-Amazon, Cursor, Google, Microsoft, OpenAI, and Vercel — clients that
-support it can install the repo directly.
+## Installation & Setup
 
-For everything else, `install.sh` copies the skills into the directory
-your tool reads:
+### Option 1: Fast Install via `install.sh`
+
+Clone this repo and install the skills directly into your project:
 
 ```bash
 git clone https://github.com/spencer-voorhees/agent-skills
 cd your-project
-path/to/agent-skills/install.sh <flavor>
+
+# Install skills and scaffold the standard docs/ directory
+path/to/agent-skills/install.sh <flavor> . --init-docs
 ```
 
-| Flavor | Tool | Installs to |
+| Flavor | Target Agent / Tool | Destination |
 |---|---|---|
-| `agents` (default) | vendor-neutral — read by Cursor, Gemini CLI, and others | `.agents/skills/` |
+| `agents` *(default)* | Universal (Cursor, Gemini CLI, etc.) | `.agents/skills/` |
 | `claude` | Claude Code | `.claude/skills/` |
-| `codex` | OpenAI Codex CLI | `.codex/skills/` |
-| `gemini` | Gemini CLI | `.gemini/skills/` |
-| `copilot` | GitHub Copilot | `.github/skills/` |
 | `cursor` | Cursor | `.cursor/skills/` |
-| `agentsmd` | anything that reads `AGENTS.md` | appends the trigger snippet |
+| `gemini` | Gemini CLI | `.gemini/skills/` |
+| `codex` | OpenAI Codex CLI | `.codex/skills/` |
+| `copilot` | GitHub Copilot | `.github/skills/` |
+| `agentsmd` | Fallback for any agent reading `AGENTS.md` | Appends trigger rules to `AGENTS.md` |
 
-The files are identical in every flavor — only the location differs. In
-all the skill-aware tools, triggering is automatic from the frontmatter
-descriptions.
+---
 
-Extras for specific tools:
+### Option 2: Claude Code Plugin Marketplace
 
-- **Claude Code** can alternatively install via its plugin system
-  (`/plugin marketplace add spencer-voorhees/agent-skills`, then
-  `/plugin install dev-workflow@agent-skills`) — that's what
-  `.claude-plugin/` is for.
-- **Cursor** also reads `.agents/`, `.claude/`, and `.codex/` skill
-  directories, so any of those installs covers it too.
-- **Agents without skill support**: the `agentsmd` flavor appends
-  [`templates/agents-md-snippet.md`](templates/agents-md-snippet.md) to
-  your `AGENTS.md` — a table mapping each trigger ("before any commit…",
-  "when stuck…") to the skill file to read, plus the session habits. The
-  same content works in any other rules mechanism.
-- **Zero setup**, works with any agent at all: point it at a skill
-  directly — *"Read agent-skills/skills/architect/SKILL.md and follow it."*
+For Claude Code, install directly as a plugin without vendoring files:
 
-## A typical project, day by day
+```bash
+/plugin marketplace add spencer-voorhees/agent-skills
+/plugin install dev-workflow@agent-skills
+```
 
-1. **Day 1**: `context-package` interviews you and writes the brief,
-   requirements, and constraints. `architect` turns those into a buildable
-   plan with milestones. For UI projects, `design-system` locks in tokens.
-2. **Build sessions**: each session reads `90-handoff.md`, builds the next
-   milestone, runs `review` on the diff before committing, and ends with
-   `remember`.
-3. **When things go sideways**: `recover` stops the flailing, audits
-   assumptions, and either finds the false belief or escalates to you with
-   a real diagnosis instead of "I'm stuck".
+---
 
-Commit `docs/context/` changes together with the code they describe — the
-package is only trustworthy if it moves in lockstep with the repo.
+### Option 3: Universal `AGENTS.md` / `.cursorrules`
+
+For tools that read instruction files, append [`templates/agents-md-snippet.md`](templates/agents-md-snippet.md) to your project's `AGENTS.md` or `.cursorrules`.
+
+---
+
+## A Typical Project Lifecycle
+
+1. **Feature Kickoff**: `spec` scopes requirements into `docs/specs/<feature>.md` with numbered user stories (`R1`, `R2`) and checkable acceptance criteria.
+2. **Technical Design**: `architect` creates `docs/architecture/system-overview.md` (defining module boundaries and API contracts) and logs contested choices in `docs/adr/`.
+3. **UI Foundations (if UI)**: `design-system` produces `docs/architecture/design-system.md` and generates live semantic tokens (e.g. `src/styles/tokens.css`).
+4. **Milestone Implementation**: Implementation sessions build each milestone against the spec.
+5. **Pre-Commit Audit**: `review` audits `git diff` against acceptance criteria, architecture, duplication, and design tokens before any commit.
+6. **Session Checkpoint**: `remember` writes any new architectural decisions to `docs/adr/`, records gotchas in `docs/learnings.md`, and generates a PR description.
+7. **When Stuck**: If an agent loops $\ge 3$ times, `recover` halts thrashing, cleans speculative workspace edits, and audits assumptions against direct evidence.

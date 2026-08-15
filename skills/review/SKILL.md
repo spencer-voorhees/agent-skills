@@ -1,107 +1,97 @@
 ---
 name: review
-description: Review pending changes against the project's context package — correctness, requirement alignment, architecture drift, duplicate code, and design-system violations — producing ranked findings with file:line references. Use before any commit, PR, or merge, whenever the user says "review", "check this", "look over my changes", or after completing a milestone or significant chunk of implementation work.
+description: Review pending changes against the project's specifications, architecture, and design system — auditing correctness, acceptance criteria alignment, architecture drift, duplicate code, design-system violations, and tests — producing ranked findings with file:line references. Use before any commit, PR, or merge, whenever the user says "review", "check this", "look over my changes", or after completing a milestone or implementation task.
 ---
 
-# Review
+# Review (Pre-Commit & PR Diff Audit)
 
 ## Why this exists
 
-A generic code review catches bugs. This review also catches the failures
-specific to agent-driven development: code that quietly duplicates a helper
-written three sessions ago, endpoints that ignore the API strategy, hardcoded
-hex values where tokens exist, and features that drift from what the
-requirements actually say. Those checks are only possible because the context
-package records what "right" looks like — so read it first.
+Standard linters catch syntax errors, but agent-assisted workflows face unique risks:
+- Silently re-implementing helper functions created in earlier sessions.
+- Endpoints deviating from the documented API strategy.
+- Hardcoded hex values bypassing semantic design tokens.
+- Subtle drift from agreed-upon acceptance criteria in feature specs.
+
+This skill audits pending git diffs against the durable Docs-as-Code ground truth
+(`docs/specs/`, `docs/architecture/`, `docs/adr/`) before code is committed or merged.
 
 ## Scope
 
-Default to the current pending changes: `git diff` (staged + unstaged), or
-the branch's diff against the default branch if the working tree is clean.
-If the user names a target (a PR, a directory, specific files), review that
-instead. State the scope you settled on in the report.
+Default to reviewing current pending changes:
+- `git diff` (staged and unstaged working tree), OR
+- The feature branch diff against the default branch (`git diff main...HEAD`).
+- If the user specifies a specific file or PR, review that explicit target. State the evaluated scope in your report header.
 
-## Prerequisites
+## The 6-Stage Audit Process
 
-Read whichever context files exist: `10-requirements.md`,
-`30-architecture.md`, `40-design-system.md`, `60-learnings.md`. Missing
-files just disable their check — note that in the report rather than
-failing. If there's no context package at all, fall back to a correctness
-review and recommend running **context-package**.
+Perform these checks in strict order:
 
-## The checks, in order
+### 1. Correctness & Edge Cases
+Identify verifiable logic bugs, unhandled null/undefined states, off-by-one errors,
+unhandled Promise rejections, race conditions, and error leaks.
+*Rule: Every correctness finding MUST include a concrete input or failure scenario that triggers the issue.*
 
-Work through these in order — correctness problems make the later checks
-moot, so establish them first.
+### 2. Specification & Acceptance Criteria Alignment
+Map changed files to the active feature spec in `docs/specs/<feature>.md`:
+- Does the code satisfy the checkable acceptance criteria for `R1`, `R2`, ...?
+- Did the change silently drop an edge case required by the spec?
+- Did the change add unrequested features or speculative scope creep? (Unrequested scope is a finding, not a bonus).
 
-### 1. Correctness
-Bugs an honest reader can demonstrate: logic errors, unhandled failure
-paths, race conditions, off-by-ones, broken edge cases. For each, describe
-the concrete input or state that triggers the failure — a finding without a
-failure scenario is a style opinion.
+### 3. Architecture & ADR Alignment
+Check changes against `docs/architecture/system-overview.md` and `docs/adr/`:
+- **Module Boundaries**: Are modules importing from forbidden layers (e.g. core domain importing UI or transport layers)?
+- **API Strategy**: Do new endpoints follow established URL naming, payload shapes, and error envelope conventions?
+- **ADRs**: Does the implementation contradict any accepted ADR in `docs/adr/`?
 
-### 2. Requirement alignment
-Map the change to the requirement(s) it serves (R1, R2, …). Flag behavior
-that contradicts an acceptance criterion, silently narrows one, or
-implements something no requirement asked for. Unrequested scope is a
-finding, not a bonus.
+### 4. Code Duplication Search
+For every newly created utility function, helper, or UI component, search the codebase
+for existing equivalents (grep by concept and distinctive string patterns, not just identical names).
+*Duplication is the signature failure of multi-session agent work. Prevent it before commit.*
 
-### 3. Architecture drift
-Check the change against `30-architecture.md`: module boundaries respected?
-New endpoints following the API strategy (URL patterns, error shape, auth)?
-Errors and logging handled per the cross-cutting rules? A justified
-deviation isn't a defect — but it must be flagged so the doc or the code
-gets fixed; a silent divergence poisons every future session that trusts
-the doc.
+### 5. Design System Compliance
+If the diff touches UI code and `docs/architecture/design-system.md` exists:
+- Check for hardcoded hex/RGB colors, arbitrary margins/paddings, or ad-hoc border radii.
+- Check that newly built components exist in the component inventory and implement required states (hover, focus-visible, disabled, loading).
 
-### 4. Duplication
-For each new function, helper, or component, search the codebase for an
-existing equivalent before accepting it as new (grep for likely names and
-distinctive strings — different sessions name the same idea differently, so
-search by concept, not just literal name). Duplicates are the signature
-failure of session-based work; nobody remembers writing the first copy.
+### 6. Test Verification
+- Verify that tests exist for new functionality per the testing strategy in `docs/architecture/system-overview.md`.
+- Run the test suite (`npm test`, `pytest`, `cargo test`, etc.). Do not assume code works without test execution.
 
-### 5. Design-system violations
-If `40-design-system.md` exists and the change touches UI: raw color/spacing
-values where tokens exist, new one-off components duplicating inventory
-entries, missing states (hover/disabled/loading) the inventory requires,
-inventory not updated for genuinely new components.
+---
 
-### 6. Tests
-Does the change carry the tests the architecture's testing section promises?
-Do existing tests still pass? Run them if a test command is defined —
-"looks right" is not evidence.
+## Report Format
 
-## Report format
+Generate a clean, prioritized markdown report:
 
 ```markdown
-## Review: [scope]
+## Review: [Scope of Review]
 
-**Verdict**: [ship it / fix blockers first / needs discussion]
+**Verdict**: [ ✅ Ship It | ⚠️ Fix Blockers First | ❓ Needs Discussion ]
 
 ### Blockers
-1. `path/file.ts:42` — [what's wrong]. [Why it matters / failure scenario.]
-   Fix: [concrete suggestion]
+1. `src/services/auth.ts:45` — **[Issue Summary]**
+   - **Problem**: [Concrete explanation and failure scenario]
+   - **Fix**: [Actionable code suggestion]
 
-### Should fix
-...
+### Should Fix
+1. `src/components/Card.tsx:18` — **Hardcoded Color**
+   - **Problem**: Uses `#1E293B` directly instead of `var(--bg-surface)`.
+   - **Fix**: Replace with `var(--bg-surface)`.
 
 ### Consider
-...
+1. `src/utils/format.ts:12` — [Optional style or performance optimization]
 
-### Checked and clean
-[One line per check that passed, e.g. "No duplication found for the three
-new helpers." — so silence is distinguishable from "didn't look".]
+### Checked & Clean
+- [x] Correctness: Core logic and error handlers verified.
+- [x] Spec Alignment: Implements R1 & R2 acceptance criteria without scope creep.
+- [x] Architecture: Module boundaries and API conventions respected.
+- [x] Duplication: No duplicate helpers found in codebase.
+- [x] Design System: Semantic tokens used exclusively.
+- [x] Tests: Test suite ran and passed (12/12 tests green).
 ```
-
-Rank findings by severity, not by file order. Every finding needs a
-file:line, a why, and a suggested fix. A finding you can't tie to a
-requirement, a doc, or a failure scenario is taste — leave it out or put it
-under Consider, clearly framed as optional.
 
 ## Boundaries
 
-Report findings; don't fix them unless the user asks. If a finding reveals
-the *docs* are wrong rather than the code (an outdated requirement, a stale
-architecture section), say so explicitly — updating the context package is
-the fix, and the **remember** skill is the tool.
+- **Report, Don't Silently Rewrite**: Present findings to the user with clear rationale. Only apply fixes when requested.
+- **Identify Doc Drift**: If the code is correct but the specification or architecture is outdated, flag that `docs/` needs an update via the **remember** skill.

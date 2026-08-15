@@ -1,28 +1,50 @@
 #!/usr/bin/env bash
-# Install the dev-workflow skills into a project, for any agent flavor.
+# Install the dev-workflow skills and optional Docs-as-Code scaffold into a project.
 #
-#   ./install.sh [flavor] [target-project-dir]
+# Usage:
+#   ./install.sh [flavor] [target-project-dir] [--init-docs]
 #
-# flavor (default: agents):
-#   agents    .agents/skills/      vendor-neutral; read by Cursor, Gemini CLI, and others
-#   claude    .claude/skills/      Claude Code
-#   codex     .codex/skills/       OpenAI Codex CLI
-#   gemini    .gemini/skills/      Gemini CLI
-#   copilot   .github/skills/      GitHub Copilot
-#   cursor    .cursor/skills/      Cursor
-#   agentsmd  AGENTS.md            appends the trigger-table snippet (for agents
-#                                  without SKILL.md support)
+# Flavors (default: agents):
+#   agents      .agents/skills/      Vendor-neutral (Cursor, Gemini CLI, and others)
+#   claude      .claude/skills/      Claude Code
+#   codex       .codex/skills/       OpenAI Codex CLI
+#   gemini      .gemini/skills/      Gemini CLI
+#   copilot     .github/skills/      GitHub Copilot
+#   cursor      .cursor/skills/      Cursor
+#   agentsmd    AGENTS.md            Appends trigger-table snippet (for agents without native SKILL.md)
 #
-# The SKILL.md files are identical for every flavor — only the directory the
-# tool reads from differs.
+# Options:
+#   --init-docs                      Scaffolds standard docs/ (specs, architecture, adr) and .gitattributes
+#
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-FLAVOR="${1:-agents}"
-TARGET="${2:-.}"
+FLAVOR="agents"
+TARGET="."
+INIT_DOCS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --init-docs)
+      INIT_DOCS=true
+      ;;
+    -h|--help|help)
+      sed -n '2,18p' "$0"; exit 0
+      ;;
+    *)
+      if [ -z "${FLAVOR_SET:-}" ]; then
+        FLAVOR="$arg"
+        FLAVOR_SET=true
+      elif [ -z "${TARGET_SET:-}" ]; then
+        TARGET="$arg"
+        TARGET_SET=true
+      fi
+      ;;
+  esac
+done
 
 if [ ! -d "$SRC/skills" ]; then
-  echo "error: no skills/ directory next to install.sh" >&2
+  echo "error: no skills/ directory found next to install.sh" >&2
   exit 1
 fi
 
@@ -36,26 +58,47 @@ case "$FLAVOR" in
   agentsmd)
     mkdir -p "$TARGET"
     cat "$SRC/templates/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
-    echo "Appended workflow snippet to $TARGET/AGENTS.md"
-    echo "Now edit it and replace <SKILLS_PATH> with the path to the skills"
-    echo "(e.g. $SRC/skills, or wherever you vendor them)."
-    exit 0
+    echo "✔ Appended workflow snippet to $TARGET/AGENTS.md"
+    echo "  (Edit AGENTS.md and replace <SKILLS_PATH> with the path to your vendored skills directory)."
+    DEST=""
     ;;
-  -h|--help|help)
-    sed -n '2,17p' "$0"; exit 0 ;;
   *)
     echo "error: unknown flavor '$FLAVOR' (agents|claude|codex|gemini|copilot|cursor|agentsmd)" >&2
     exit 1
     ;;
 esac
 
-mkdir -p "$TARGET/$DEST"
-count=0
-for skill in "$SRC"/skills/*/; do
-  name="$(basename "$skill")"
-  rm -rf "${TARGET:?}/$DEST/$name"
-  cp -R "$skill" "$TARGET/$DEST/$name"
-  count=$((count + 1))
-done
+if [ -n "$DEST" ]; then
+  mkdir -p "$TARGET/$DEST"
+  count=0
+  for skill in "$SRC"/skills/*/; do
+    name="$(basename "$skill")"
+    rm -rf "${TARGET:?}/$DEST/$name"
+    cp -R "$skill" "$TARGET/$DEST/$name"
+    count=$((count + 1))
+  done
+  echo "✔ Installed $count skills to $TARGET/$DEST/"
+fi
 
-echo "Installed $count skills to $TARGET/$DEST/"
+if [ "$INIT_DOCS" = true ]; then
+  mkdir -p "$TARGET/docs/specs" "$TARGET/docs/architecture" "$TARGET/docs/adr"
+  
+  if [ ! -f "$TARGET/docs/specs/_template.md" ]; then
+    cp "$SRC/templates/docs-skeleton/specs/_template.md" "$TARGET/docs/specs/_template.md"
+  fi
+  if [ ! -f "$TARGET/docs/architecture/system-overview.md" ]; then
+    cp "$SRC/templates/docs-skeleton/architecture/system-overview.md" "$TARGET/docs/architecture/system-overview.md"
+  fi
+  if [ ! -f "$TARGET/docs/adr/0000-template.md" ]; then
+    cp "$SRC/templates/docs-skeleton/adr/0000-template.md" "$TARGET/docs/adr/0000-template.md"
+  fi
+  if [ ! -f "$TARGET/docs/learnings.md" ]; then
+    cp "$SRC/templates/docs-skeleton/learnings.md" "$TARGET/docs/learnings.md"
+  fi
+  
+  if [ -f "$SRC/templates/gitattributes-snippet.txt" ]; then
+    cat "$SRC/templates/gitattributes-snippet.txt" >> "$TARGET/.gitattributes"
+    echo "✔ Configured .gitattributes union merge drivers for docs"
+  fi
+  echo "✔ Scaffolded standard Docs-as-Code structure in $TARGET/docs/"
+fi
