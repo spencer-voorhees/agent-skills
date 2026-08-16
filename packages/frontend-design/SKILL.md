@@ -182,6 +182,7 @@ AI agents routinely build only the "happy path" (fully loaded state), leaving ap
 
 Unless explicitly requested by the user, **NEVER** use these clichés:
 
+- ❌ **No Fake Status Pips / Decorative "Ready" Badges**: Never add decorative green/colored dots with static text like "● Ready", "● Live", "● Operational", "● Active", "● Online", or "● v1.0" in headers, cards, or hero sections unless the application's explicit primary function is a real-time server infrastructure health monitor. Decorative status pips are useless clutter that scream "AI template".
 - ❌ **No Emojis as UI Icons**: Never use raw unicode emojis (`🔍`, `⭐`, `☀️`, `⚙️`, `🗑️`, `🔥`, `📊`) as interface icons, button graphics, or status indicators. Emojis render inconsistently across operating systems (iOS vs Android vs Windows vs Linux), clash with theme color palettes, and look amateur. Always use crisp, scalable vector SVG icons (Lucide, Heroicons, Radix, or custom inline SVGs) that inherit theme colors via `currentColor`.
 - ❌ **No Purple/Violet on Dark**: The cliché purple-on-black gradient or violet-glowing border.
 - ❌ **No Fake Numbered Markers**: Numbering items `01 / 02 / 03` when they are not an ordered chronological sequence.
