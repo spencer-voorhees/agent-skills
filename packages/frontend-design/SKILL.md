@@ -127,6 +127,8 @@ Typography carries the entire personality of the interface:
 
 ---
 
+---
+
 ## 5. Purposeful Micro-Interactions & Motion
 
 Animation should inform and delight, never distract:
@@ -140,7 +142,43 @@ Animation should inform and delight, never distract:
 
 ---
 
-## 6. Strict Anti-AI Design Tropes (Forbidden Patterns)
+## 6. State Transitions, Skeletons & Resilient States
+
+AI agents routinely build only the "happy path" (fully loaded state), leaving apps to flash white, jump abruptly, or show blank voids while fetching data. Enforce complete state handling for every dynamic surface:
+
+### A. Ghost Skeletons & Shimmer Loaders
+- **Zero Layout Shift (CLS)**: Skeleton placeholders MUST match the exact dimensions, aspect ratios, and grid structure of the final loaded cards, charts, and lists. Content must never jump or pop when data resolves.
+- **Subtle Pulse/Shimmer**: Use gentle, low-contrast opacity pulses rather than harsh flashing bars:
+  ```css
+  .skeleton {
+    background: var(--bg-surface-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 8px);
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.85; }
+  }
+  ```
+
+### B. Micro-Loading & Async Feedback
+- **Buttons in Flight**: Action buttons performing async requests MUST show an inline micro-spinner, disable user input, and preserve original button width to prevent layout jitter.
+- **Search & Filter Inputs**: Inputs performing debounced network queries MUST show a subtle inline spinner or pulsing indicator inside the input slot.
+
+### C. Graceful Empty & First-Run States
+- Never leave an uninitialized screen blank or with raw unstyled text (`<p>No results</p>`).
+- Provide an intentional empty state: a themed icon, a clear description, and an actionable next step (e.g. *"No tracked cities yet — search for a location above to bookmark it"*).
+
+### D. Error Resilience with Inline Retry
+- Never allow a failed network call to crash the component hierarchy or display raw stack traces.
+- Render a non-blocking error badge or card with a clean human explanation and an immediate **"Retry"** action button.
+
+### E. Smooth Content Cross-Fade
+- When transitioning from loading $\rightarrow$ loaded, apply a subtle cross-fade (`transition: opacity 180ms ease-out`) so content fades in smoothly instead of snapping into view.
+
+---
+
+## 7. Strict Anti-AI Design Tropes (Forbidden Patterns)
 
 Unless explicitly requested by the user, **NEVER** use these clichés:
 
