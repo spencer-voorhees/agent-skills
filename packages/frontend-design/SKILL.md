@@ -29,7 +29,7 @@ giving every project a visual identity that could never be mistaken for a generi
   dense, and rock-solid; a creative tool should feel tactile and canvas-like).
 - **Take One Deliberate Aesthetic Risk**: Make at least one opinionated, justifiable
   design departure: a bold typographic contrast, an asymmetrical layout anchor, a
-  signature specular glass refraction, or an organic ambient lighting effect.
+  signature ambient atmosphere, a tactile paper texture, or an ultra-dense technical layout.
 - **Authentic Copy & Data**: Never use robotic placeholder copy ("Elevate your
   experience with next-gen synergy"). Use realistic, domain-accurate content and
   labels throughout.
@@ -107,14 +107,12 @@ the light mode is an afterthought that looks flat, washed out, and unstyled.
 - **Readable Contrast**: Use deep slate/charcoal (`#0f172a`, `#1e293b`) for primary text rather than harsh pure black (`#000000`) or faint washed-out grays.
 
 ### Dark Mode Craft Rules:
-- **Atmospheric Depth over Flat Black**: Use deep obsidian and navy surfaces (`#0b0f19`, `#111827`) rather than flat `#000000`.
-- **Liquid Glass Materials & Specular Rims**:
-  ```css
-  --glass-surface: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.15);
-  --glass-inner-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
-  --glass-blur: blur(28px) saturate(180%);
-  ```
+- **Atmospheric Depth over Flat Black**: Use deep obsidian, slate, or charcoal tones (`#0b0f19`, `#111827`, `#0f172a`) rather than harsh, flat `#000000`.
+- **Match Material to Domain**:
+  - *Solid / Clean Surfaces*: Distinct layered backgrounds (`--bg-surface: #1e293b`, `--bg-card: #243048`) with subtle 1px border outlines.
+  - *Atmospheric / Glass*: Translucent surfaces (`rgba(255, 255, 255, 0.08)` with `backdrop-filter: blur(20px)`) when appropriate for fluid, ambient products (e.g. weather, media).
+  - *High-Density Terminal*: Monospace tables, sharp borders, high-contrast indicators for technical tools.
+- **Soft Specular Lighting**: When adding depth, use delicate inner highlights (`inset 0 1px 0 rgba(255, 255, 255, 0.1)`) rather than loud glowing outlines.
 
 ---
 
