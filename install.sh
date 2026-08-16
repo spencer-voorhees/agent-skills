@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install the dev-workflow skills and optional Docs-as-Code scaffold into a project.
+# Install agent skills into a project by package or individual skill.
 #
 # Usage:
-#   ./install.sh [flavor] [target-project-dir] [--init-docs]
+#   ./install.sh [flavor] [target-dir] [package-or-skill] [--init-docs]
 #
 # Flavors (default: agents):
-#   agents      .agents/skills/      Vendor-neutral (Cursor, Gemini CLI, and others)
+#   agents      .agents/skills/      Vendor-neutral (Cursor, Gemini CLI, Antigravity, etc.)
 #   claude      .claude/skills/      Claude Code
 #   codex       .codex/skills/       OpenAI Codex CLI
 #   gemini      .gemini/skills/      Gemini CLI
@@ -13,38 +13,50 @@
 #   cursor      .cursor/skills/      Cursor
 #   agentsmd    AGENTS.md            Appends trigger-table snippet (for agents without native SKILL.md)
 #
+# Packages / Skills (default: all):
+#   all               Installs both dev-workflow and frontend-design
+#   dev-workflow      Installs the 6 lifecycle skills (spec, architect, design-system, review, remember, recover)
+#   frontend-design   Installs the standalone visual design & UI craft skill
+#   <skill-name>      Installs any individual skill by name (e.g. spec, review, frontend-design)
+#
 # Options:
-#   --init-docs                      Scaffolds standard docs/ (specs, architecture, adr) and .gitattributes
+#   --init-docs       Scaffolds standard docs/ (specs, architecture, adr), .gitattributes, and .gitignore
 #
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 FLAVOR="agents"
 TARGET="."
+PACKAGE="all"
 INIT_DOCS=false
 
+POSITIONAL_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --init-docs)
       INIT_DOCS=true
       ;;
     -h|--help|help)
-      sed -n '2,18p' "$0"; exit 0
+      sed -n '2,22p' "$0"; exit 0
       ;;
     *)
-      if [ -z "${FLAVOR_SET:-}" ]; then
-        FLAVOR="$arg"
-        FLAVOR_SET=true
-      elif [ -z "${TARGET_SET:-}" ]; then
-        TARGET="$arg"
-        TARGET_SET=true
-      fi
+      POSITIONAL_ARGS+=("$arg")
       ;;
   esac
 done
 
-if [ ! -d "$SRC/skills" ]; then
-  echo "error: no skills/ directory found next to install.sh" >&2
+if [ ${#POSITIONAL_ARGS[@]} -ge 1 ]; then
+  FLAVOR="${POSITIONAL_ARGS[0]}"
+fi
+if [ ${#POSITIONAL_ARGS[@]} -ge 2 ]; then
+  TARGET="${POSITIONAL_ARGS[1]}"
+fi
+if [ ${#POSITIONAL_ARGS[@]} -ge 3 ]; then
+  PACKAGE="${POSITIONAL_ARGS[2]}"
+fi
+
+if [ ! -d "$SRC/packages" ]; then
+  echo "error: no packages/ directory found next to install.sh" >&2
   exit 1
 fi
 
@@ -71,13 +83,59 @@ esac
 if [ -n "$DEST" ]; then
   mkdir -p "$TARGET/$DEST"
   count=0
-  for skill in "$SRC"/skills/*/; do
-    name="$(basename "$skill")"
-    rm -rf "${TARGET:?}/$DEST/$name"
-    cp -R "$skill" "$TARGET/$DEST/$name"
+
+  install_skill_dir() {
+    local skill_src="$1"
+    local skill_name="$2"
+    rm -rf "${TARGET:?}/$DEST/$skill_name"
+    mkdir -p "$TARGET/$DEST/$skill_name"
+    if [ -f "$skill_src/SKILL.md" ]; then
+      cp "$skill_src/SKILL.md" "$TARGET/$DEST/$skill_name/SKILL.md"
+    fi
     count=$((count + 1))
-  done
-  echo "✔ Installed $count skills to $TARGET/$DEST/"
+  }
+
+  case "$PACKAGE" in
+    all)
+      # Install dev-workflow skills
+      for skill in "$SRC"/packages/dev-workflow/*/; do
+        if [ -d "$skill" ]; then
+          name="$(basename "$skill")"
+          install_skill_dir "$skill" "$name"
+        fi
+      done
+      # Install frontend-design
+      if [ -d "$SRC/packages/frontend-design" ]; then
+        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
+      fi
+      ;;
+    dev-workflow|workflow)
+      for skill in "$SRC"/packages/dev-workflow/*/; do
+        if [ -d "$skill" ]; then
+          name="$(basename "$skill")"
+          install_skill_dir "$skill" "$name"
+        fi
+      done
+      ;;
+    frontend-design|frontend)
+      if [ -d "$SRC/packages/frontend-design" ]; then
+        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
+      fi
+      ;;
+    *)
+      # Check if individual skill in dev-workflow
+      if [ -d "$SRC/packages/dev-workflow/$PACKAGE" ]; then
+        install_skill_dir "$SRC/packages/dev-workflow/$PACKAGE" "$PACKAGE"
+      elif [ "$PACKAGE" = "frontend-design" ] && [ -d "$SRC/packages/frontend-design" ]; then
+        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
+      else
+        echo "error: unknown package or skill '$PACKAGE'" >&2
+        exit 1
+      fi
+      ;;
+  esac
+
+  echo "✔ Installed $count skill(s) ($PACKAGE) to $TARGET/$DEST/"
 fi
 
 if [ "$INIT_DOCS" = true ]; then

@@ -6,8 +6,13 @@
   "plugins": [
     {
       "name": "dev-workflow",
-      "source": "./",
-      "description": "A repeatable agent development workflow: spec-driven development, architecture blueprints, ADRs, semantic design tokens, pre-commit review, and loop-breaking recovery."
+      "source": "./packages/dev-workflow",
+      "description": "A repeatable development workflow: spec-driven development, architecture blueprints, ADRs, semantic design tokens, pre-commit review, and loop-breaking recovery."
+    },
+    {
+      "name": "frontend-design",
+      "source": "./packages/frontend-design",
+      "description": "Distinctive, high-craft visual design guidance: domain-specific character, fluid proportional scaling across mobile and 4K displays, light/dark theme parity, and anti-AI tropes."
     }
   ]
 }

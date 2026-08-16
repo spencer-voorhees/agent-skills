@@ -1,0 +1,157 @@
+---
+name: frontend-design
+description: Distinctive, high-craft visual design guidance for web applications and interfaces. Enforces domain-specific character, bold aesthetic direction, fluid proportional scaling across mobile and 4K/ultrawide displays, light/dark theme parity, multi-layered depth, and strict bans on generic AI design tropes. Use whenever building new UI pages, styling components, designing layouts, re-theming, or when the user says "make it look incredible/polished", "frontend design", "UI craft", "design direction", or when UI feels templated, generic, or poorly scaled.
+---
+
+# Frontend Design & Visual Craft
+
+## Why this exists
+
+AI-generated interfaces suffer from an unmistakable **"template syndrome"**: generic
+cookie-cutter cards, uninspired typography, microscopic layouts on large monitors,
+broken mobile responsiveness, and dark modes that look atmospheric while their light
+modes look flat and washed out.
+
+This skill acts as the **Creative Director**, steering implementation away from generic
+AI habits and toward distinctive, bespoke visual identity, spatial harmony, and
+meticulous craft.
+
+---
+
+## 1. The Creative Studio Mindset
+
+Approach every frontend task as the lead designer at an elite creative studio known for
+giving every project a visual identity that could never be mistaken for a generic template.
+
+- **Ground in the Subject**: The domain's real-world vernacular—its instruments,
+  materials, textures, and metaphors—must dictate the visual design. (A weather app
+  should feel atmospheric and glanceable; a financial terminal should feel crisp,
+  dense, and rock-solid; a creative tool should feel tactile and canvas-like).
+- **Take One Deliberate Aesthetic Risk**: Make at least one opinionated, justifiable
+  design departure: a bold typographic contrast, an asymmetrical layout anchor, a
+  signature specular glass refraction, or an organic ambient lighting effect.
+- **Authentic Copy & Data**: Never use robotic placeholder copy ("Elevate your
+  experience with next-gen synergy"). Use realistic, domain-accurate content and
+  labels throughout.
+
+---
+
+## 2. Multi-Display Spatial Architecture
+
+AI interfaces routinely fail on two screen extremes: they blow out horizontally on mobile,
+and render as tiny 900px islands surrounded by an empty void on 27"+ and 4K monitors.
+Enforce the following spatial rules:
+
+### A. Large & Ultrawide Monitors ($\ge 1400\text{px}$, $4\text{K}$, $27\text{"+}$)
+
+1. **Anti-Microscopic Fluid Sizing**:
+   Never use fixed small pixel font sizes (`14px`) that turn tiny on high-resolution displays.
+   Use fluid CSS `clamp()` so typography and key metrics scale gracefully with viewport width:
+   ```css
+   /* Base typography that remains legible from normal desktop viewing distance */
+   --font-base: clamp(0.95rem, 0.85rem + 0.3vw, 1.15rem);
+   --font-hero: clamp(3.5rem, 8vw, 6.5rem);
+   --font-heading: clamp(1.5rem, 3vw, 2.5rem);
+   ```
+2. **Progressive Layout Density (No Empty Voids)**:
+   Do not leave wide expanses of empty, dead whitespace on widescreen displays.
+   Expand 1-column layouts into rich multi-column grids:
+   - Expand slide-over drawers into persistent, side-by-side contextual panels.
+   - Show expanded timelines, secondary telemetry grids, and recent item lists.
+3. **Fluid Container Boundaries**:
+   Use fluid container bounds with proportional padding:
+   ```css
+   .container {
+     width: 100%;
+     max-width: min(94vw, 1680px);
+     margin-inline: auto;
+     padding-inline: clamp(1.25rem, 3.5vw, 4rem);
+   }
+   ```
+
+### B. Mobile & Tablet Responsiveness ($\le 768\text{px}$)
+
+1. **Strict Zero-Blowout Constraint**:
+   Ensure `box-sizing: border-box` on all elements. Prevent horizontal scroll bleed
+   with `overflow-x: clip` on root containers and `max-width: 100%` on all media/cards.
+2. **Touch-First Affordances**:
+   All interactive tap targets (buttons, pills, list items) MUST be $\ge 44\text{px} \times 44\text{px}$.
+3. **Mobile Layout Adaptations**:
+   - Convert desktop side drawers into native-feeling slide-up bottom sheets.
+   - Convert wide multi-column grids into horizontally swipeable touch carousels with hidden scrollbars:
+     ```css
+     .touch-carousel {
+       display: flex;
+       overflow-x: auto;
+       scroll-snap-type: x mandatory;
+       -webkit-overflow-scrolling: touch;
+       scrollbar-width: none;
+     }
+     .touch-carousel::-webkit-scrollbar { display: none; }
+     ```
+
+---
+
+## 3. Dark & Light Theme Parity
+
+A common failure is building a visually stunning dark mode with glowing accents, while
+the light mode is an afterthought that looks flat, washed out, and unstyled.
+
+### Light Mode Craft Rules:
+- **Never Pure White on Pure White**: Layer tinted background canvases (`#f1f5f9` or warm neutral `#f8fafc`) behind crisp white cards (`#ffffff`) to create immediate visual separation.
+- **Diffuse Multi-Layer Shadows**: Use multi-stop soft shadows for realistic elevation:
+  ```css
+  --shadow-card-light: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 8px 24px -4px rgba(0, 0, 0, 0.07);
+  ```
+- **Crisp Hairline Boundaries**: Use subtle borders (`rgba(15, 23, 42, 0.08)`) so card edges stay defined even in bright sunlight.
+- **Readable Contrast**: Use deep slate/charcoal (`#0f172a`, `#1e293b`) for primary text rather than harsh pure black (`#000000`) or faint washed-out grays.
+
+### Dark Mode Craft Rules:
+- **Atmospheric Depth over Flat Black**: Use deep obsidian and navy surfaces (`#0b0f19`, `#111827`) rather than flat `#000000`.
+- **Liquid Glass Materials & Specular Rims**:
+  ```css
+  --glass-surface: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-inner-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+  --glass-blur: blur(28px) saturate(180%);
+  ```
+
+---
+
+## 4. Typography & Visual Hierarchy
+
+Typography carries the entire personality of the interface:
+
+1. **Intentional Pairings**:
+   Pair a distinctive display font (e.g. `Plus Jakarta Sans`, `Cabinet Grotesk`, `Newsreader`, `Space Grotesk`) with a highly legible body face (`Inter`, `Geist`, `-apple-system`).
+2. **Numeric & Data Typography**:
+   For numbers, stats, and timestamps, always enable tabular figures (`font-variant-numeric: tabular-nums`) so numbers don't jump horizontally as values update.
+3. **Tracking & Optical Weight**:
+   - Tighten letter-spacing on large display titles (`letter-spacing: -0.03em`).
+   - Open letter-spacing on small uppercase micro-labels (`letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.75rem`).
+
+---
+
+## 5. Purposeful Micro-Interactions & Motion
+
+Animation should inform and delight, never distract:
+
+1. **Subtle Affordances**:
+   Every interactive element must have active hover, focus-visible, and press states with snappy transitions (`transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1)`).
+2. **Living Data**:
+   Gauges, progress bars, and charts should animate into view on initial load.
+3. **No Over-Animation**:
+   Avoid endless looping particle effects, spinning backgrounds, or bouncing badges that scream "AI demo."
+
+---
+
+## 6. Strict Anti-AI Design Tropes (Forbidden Patterns)
+
+Unless explicitly requested by the user, **NEVER** use these clichés:
+
+- ❌ **No Purple/Violet on Dark**: The cliché purple-on-black gradient or violet-glowing border.
+- ❌ **No Fake Numbered Markers**: Numbering items `01 / 02 / 03` when they are not an ordered chronological sequence.
+- ❌ **No Icon-Stuffed Bento Clutter**: Random bento box grids crammed with disconnected icons.
+- ❌ **No Pulsing Biscuit Badges**: Small pill badges with animated glowing dots floating over headlines for no reason.
+- ❌ **No Gradient Keyword Fills**: Rainbow/gradient text fills across random words in a headline.
+- ❌ **No Robotic Placeholder Copy**: Replace generic corporate text with crisp, realistic domain copy.

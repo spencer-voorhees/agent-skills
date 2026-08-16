@@ -26,7 +26,8 @@ Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 |---|---|
 | Starting a project/feature; writing a spec or PRD; capturing user stories & acceptance criteria | `SKILLS_PATH/spec/SKILL.md` |
 | Choosing the stack, designing architecture, module boundaries, schema, API contracts, or system RFCs | `SKILLS_PATH/architect/SKILL.md` |
-| Building/styling UI, semantic tokens (W3C), typography/spacing scales, component inventory | `SKILLS_PATH/design-system/SKILL.md` |
+| Designing visual identity, high-craft UI layouts, mobile & 4K display scaling, light/dark parity | `SKILLS_PATH/frontend-design/SKILL.md` |
+| Building/styling UI, semantic tokens, typography/spacing scales, component inventory | `SKILLS_PATH/design-system/SKILL.md` |
 | Before any commit, PR, or merge; after finishing a milestone; auditing diffs against specs | `SKILLS_PATH/review/SKILL.md` |
 | Ending a session, "wrap up" / "checkpoint", logging an Architectural Decision Record (ADR), recording gotchas | `SKILLS_PATH/remember/SKILL.md` |
 | The same error has survived ~3 fix attempts, progress has stalled, or when stuck | `SKILLS_PATH/recover/SKILL.md` |
