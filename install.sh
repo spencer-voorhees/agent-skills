@@ -61,12 +61,12 @@ if [ ! -d "$SRC/packages" ]; then
 fi
 
 case "$FLAVOR" in
-  agents)  DEST=".agents/skills" ;;
-  claude)  DEST=".claude/skills" ;;
-  codex)   DEST=".codex/skills" ;;
-  gemini)  DEST=".gemini/skills" ;;
-  copilot) DEST=".github/skills" ;;
-  cursor)  DEST=".cursor/skills" ;;
+  agents|antigravity|agy) DEST=".agents/skills" ;;
+  claude)                 DEST=".claude/skills" ;;
+  codex)                  DEST=".codex/skills" ;;
+  gemini)                 DEST=".gemini/skills" ;;
+  copilot)                DEST=".github/skills" ;;
+  cursor)                 DEST=".cursor/skills" ;;
   agentsmd)
     mkdir -p "$TARGET"
     cat "$SRC/templates/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
