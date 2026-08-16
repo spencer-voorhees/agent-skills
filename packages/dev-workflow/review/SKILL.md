@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review pending changes against the project's specifications, architecture, and design system — auditing correctness, acceptance criteria alignment, architecture drift, duplicate code, design-system violations, and tests — producing ranked findings with file:line references. Trigger automatically before ANY git commit, PR, or merge, and whenever the user says "commit", "commit this", "make a commit", "review", "check this", "audit my code", "pre-commit check", "look over my changes", "is this ready to merge", or after completing an implementation task.
+description: Review pending changes against the project's specifications, architecture, and design system — auditing correctness, acceptance criteria alignment, architecture drift, duplicate code, design-system violations, and tests — producing ranked findings with file:line references. Use before a PR, merge, or milestone commit, whenever the user says "review", "check this", "audit my code", "pre-commit check", "look over my changes", "is this ready to merge", "review and commit", or after completing an implementation task.
 ---
 
 # Review (Pre-Commit & PR Diff Audit)
@@ -15,14 +15,6 @@ Standard linters catch syntax errors, but agent-assisted workflows face unique r
 
 This skill audits pending git diffs against the durable Docs-as-Code ground truth
 (`docs/specs/`, `docs/architecture/`, `docs/adr/`) before code is committed or merged.
-
-## Pre-Commit Interception Rule
-
-**Whenever the user asks to commit changes (e.g. "commit", "commit this", "make a commit"), do NOT execute `git commit` blindly.**
-1. Inspect the pending `git diff`.
-2. Execute the 6-stage audit below.
-3. If blockers are found, halt and present the findings with suggested fixes.
-4. If clean, output the quick verdict scorecard and proceed with the commit.
 
 ## Scope
 
