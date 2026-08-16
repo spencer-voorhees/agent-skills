@@ -52,6 +52,7 @@ If `docs/` or `docs/specs/` does not exist in the project, automatically create:
 - `docs/adr/`
 - `docs/learnings.md`
 - `.gitattributes` (with `docs/learnings.md merge=union` and `docs/specs/*.md merge=union`)
+- Ensure `.gitignore` includes `docs/handoff.md` and `docs/handoffs/` to keep session handoffs local.
 
 ### 1. Inventory what already exists
 

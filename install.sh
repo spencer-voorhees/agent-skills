@@ -100,5 +100,9 @@ if [ "$INIT_DOCS" = true ]; then
     cat "$SRC/templates/gitattributes-snippet.txt" >> "$TARGET/.gitattributes"
     echo "✔ Configured .gitattributes union merge drivers for docs"
   fi
+  if [ -f "$SRC/templates/gitignore-snippet.txt" ]; then
+    cat "$SRC/templates/gitignore-snippet.txt" >> "$TARGET/.gitignore"
+    echo "✔ Added docs/handoff.md to .gitignore"
+  fi
   echo "✔ Scaffolded standard Docs-as-Code structure in $TARGET/docs/"
 fi

@@ -98,9 +98,9 @@ can be used directly as a PR description:
 - The dev database schema requires running `npm run db:migrate` before testing `src/api/refresh.ts`.
 ```
 
-*Multi-Developer Git Tip*: For team repositories with concurrent branches, add
-`docs/handoff.md` to `.gitignore` or use branch-named handoffs
-(`docs/handoffs/${GIT_BRANCH}.md`) so active local handoffs do not conflict on `main`.
+*Git Safety Standard*: `docs/handoff.md` (and `docs/handoffs/`) MUST be listed in `.gitignore`
+so that active local session state never gets committed into the repository or conflicts on PR merges.
+If `.gitignore` does not yet ignore `docs/handoff.md`, add it automatically before writing the handoff.
 
 ---
 
