@@ -42,31 +42,28 @@ AI interfaces routinely fail on two screen extremes: they blow out horizontally 
 and render as tiny 900px islands surrounded by an empty void on 27"+ and 4K monitors.
 Enforce the following spatial rules:
 
-### A. Large & Ultrawide Monitors ($\ge 1400\text{px}$, $4\text{K}$, $27\text{"+}$)
+### A. Standard Viewport & Container Sizing (Anti-Stretching & Optimal Line Length)
 
-1. **Anti-Microscopic Fluid Sizing**:
-   Never use fixed small pixel font sizes (`14px`) that turn tiny on high-resolution displays.
-   Use fluid CSS `clamp()` so typography and key metrics scale gracefully with viewport width:
-   ```css
-   /* Base typography that remains legible from normal desktop viewing distance */
-   --font-base: clamp(0.95rem, 0.85rem + 0.3vw, 1.15rem);
-   --font-hero: clamp(3.5rem, 8vw, 6.5rem);
-   --font-heading: clamp(1.5rem, 3vw, 2.5rem);
-   ```
-2. **Progressive Layout Density (No Empty Voids)**:
-   Do not leave wide expanses of empty, dead whitespace on widescreen displays.
-   Expand 1-column layouts into rich multi-column grids:
-   - Expand slide-over drawers into persistent, side-by-side contextual panels.
-   - Show expanded timelines, secondary telemetry grids, and recent item lists.
-3. **Fluid Container Boundaries**:
-   Use fluid container bounds with proportional padding:
+Never allow content to stretch unconstrained across wide displays. Adhere to standard web container constraints:
+
+1. **Standard Container Widths**:
+   - **Standard Websites & Apps**: `max-width: 1200px` or `1280px` (e.g. `max-width: 80rem`), centered with `margin-inline: auto`.
+   - **Data-Dense Dashboards & Complex Workspaces**: `max-width: 1440px` (e.g. `90rem`), centered with `margin-inline: auto`.
+   - **Article / Text / Form Content**: `max-width: 680px` or `max-width: 65ch` to maintain comfortable 60–80 character line-length readability.
    ```css
    .container {
      width: 100%;
-     max-width: min(94vw, 1680px);
+     max-width: 1280px; /* or 1440px for data-dense dashboards */
      margin-inline: auto;
-     padding-inline: clamp(1.25rem, 3.5vw, 4rem);
+     padding-inline: clamp(1rem, 3vw, 2.5rem);
    }
+   ```
+2. **On 27"+ / 4K / Ultrawide Displays ($\ge 1440\text{px}$)**:
+   - The container **remains cleanly centered at standard max-width** with balanced left/right gutters.
+   - Use fluid `clamp()` sizing for typography so text and key metrics remain crisp and readable from desktop viewing distance without breaking layout proportions.
+   ```css
+   --font-base: clamp(0.95rem, 0.9rem + 0.25vw, 1.1rem);
+   --font-hero: clamp(3rem, 6vw, 4.5rem);
    ```
 
 ### B. Mobile & Tablet Responsiveness ($\le 768\text{px}$)
