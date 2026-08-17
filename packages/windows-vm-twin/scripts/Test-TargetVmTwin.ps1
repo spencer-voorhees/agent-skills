@@ -46,6 +46,24 @@ function Load-Manifest([string]$name) {
     return $null
 }
 
+# Apply the same path remapping used during provisioning, so remapped targets
+# are audited at their actual location instead of the source path.
+$parameters = $null
+if (-not [string]::IsNullOrWhiteSpace($ParametersFile) -and (Test-Path -LiteralPath $ParametersFile)) {
+    $parameters = Get-Content -LiteralPath $ParametersFile -Raw | ConvertFrom-Json
+}
+
+function Resolve-TargetPath([string]$sourcePath) {
+    if ($parameters -and $parameters.PathMappings) {
+        foreach ($prop in $parameters.PathMappings.PSObject.Properties) {
+            if ($prop.Name -eq $sourcePath -and -not [string]::IsNullOrWhiteSpace($prop.Value)) {
+                return $prop.Value
+            }
+        }
+    }
+    return $sourcePath
+}
+
 $results = [ordered]@{
     Passed   = 0
     Warnings = 0
@@ -97,11 +115,25 @@ if ($features) {
 # 2. Audit IIS Application Pools
 # -------------------------------------------------------------
 Write-Host "`n[2/7] Auditing IIS Application Pools..." -ForegroundColor Cyan
+
+# Create ServerManager once, independent of which manifests exist, so the site
+# audit still runs when the app pool manifest is empty or missing.
+$sm = $null
+try {
+    [System.Reflection.Assembly]::LoadFrom("$env:SystemRoot\System32\inetsrv\Microsoft.Web.Administration.dll") | Out-Null
+    $sm = New-Object Microsoft.Web.Administration.ServerManager
+}
+catch {
+    # Only a failure if the source actually had IIS configuration to audit;
+    # the sections below record it against whichever manifests are non-empty.
+}
+
 $apppools = Load-Manifest "iis-apppools.json"
-if ($apppools) {
+if ($apppools -and -not $sm) {
+    Record-TestResult "IIS AppPool" "ServerManager" "FAIL" "Source has IIS app pools but Microsoft.Web.Administration is unavailable on target (is IIS installed?)."
+}
+if ($apppools -and $sm) {
     try {
-        [System.Reflection.Assembly]::LoadFrom("$env:SystemRoot\System32\inetsrv\Microsoft.Web.Administration.dll") | Out-Null
-        $sm = New-Object Microsoft.Web.Administration.ServerManager
         foreach ($p in $apppools) {
             $targetPool = $sm.ApplicationPools[$p.Name]
             if ($targetPool) {
@@ -118,7 +150,7 @@ if ($apppools) {
         }
     }
     catch {
-        Record-TestResult "IIS AppPool" "ServerManager" "FAIL" "Could not connect to Microsoft.Web.Administration: $_"
+        Record-TestResult "IIS AppPool" "Enumeration" "FAIL" "Could not audit application pools: $_"
     }
 }
 
@@ -127,6 +159,9 @@ if ($apppools) {
 # -------------------------------------------------------------
 Write-Host "`n[3/7] Auditing IIS Websites & Bindings..." -ForegroundColor Cyan
 $sites = Load-Manifest "iis-sites.json"
+if ($sites -and -not $sm) {
+    Record-TestResult "IIS Site" "ServerManager" "FAIL" "Source has IIS sites but Microsoft.Web.Administration is unavailable on target (is IIS installed?)."
+}
 if ($sites -and $sm) {
     foreach ($s in $sites) {
         $targetSite = $sm.Sites[$s.Name]
@@ -151,7 +186,24 @@ if ($sites -and $sm) {
                             }
                         }
                         catch {
-                            Record-TestResult "Site Binding" "$($s.Name) ($($b.Protocol):$port)" "WARN" "Could not test TCP port $port: $_"
+                            Record-TestResult "Site Binding" "$($s.Name) ($($b.Protocol):$port)" "WARN" "Could not test TCP port ${port}: $_"
+                        }
+
+                        # HTTP response probe (http only; https via 127.0.0.1 would fail
+                        # hostname validation). Any HTTP status counts as a live endpoint.
+                        if ($b.Protocol -eq "http") {
+                            try {
+                                $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+                                Record-TestResult "HTTP Probe" "$($s.Name) (port $port)" "PASS" "Endpoint returned HTTP $($resp.StatusCode)."
+                            }
+                            catch {
+                                if ($_.Exception.Response) {
+                                    $code = [int]$_.Exception.Response.StatusCode
+                                    Record-TestResult "HTTP Probe" "$($s.Name) (port $port)" "PASS" "Endpoint responded with HTTP $code (server is up; status may reflect host-header or app config)."
+                                } else {
+                                    Record-TestResult "HTTP Probe" "$($s.Name) (port $port)" "WARN" "No HTTP response on 127.0.0.1:$port."
+                                }
+                            }
                         }
                     }
                 }
@@ -171,7 +223,12 @@ if ($shares -and (Get-Command -Name Get-SmbShare -ErrorAction SilentlyContinue))
     foreach ($sh in $shares) {
         $targetShare = Get-SmbShare -Name $sh.Name -ErrorAction SilentlyContinue
         if ($targetShare) {
-            Record-TestResult "SMB Share" $sh.Name "PASS" "Share exists (Path: $($targetShare.Path))."
+            $expectedPath = Resolve-TargetPath $sh.Path
+            if ($targetShare.Path -eq $expectedPath) {
+                Record-TestResult "SMB Share" $sh.Name "PASS" "Share exists (Path: $($targetShare.Path))."
+            } else {
+                Record-TestResult "SMB Share" $sh.Name "WARN" "Share exists but path is $($targetShare.Path); expected $expectedPath."
+            }
         } else {
             Record-TestResult "SMB Share" $sh.Name "FAIL" "SMB Share $($sh.Name) not found on target."
         }
@@ -186,10 +243,26 @@ $acls = Load-Manifest "ntfs-acls.json"
 if ($acls) {
     foreach ($entry in $acls) {
         if ($entry.Path) {
-            if (Test-Path -LiteralPath $entry.Path) {
-                Record-TestResult "NTFS Path" $entry.Path "PASS" "Directory exists on target disk."
+            $targetPath = Resolve-TargetPath $entry.Path
+            if (Test-Path -LiteralPath $targetPath) {
+                Record-TestResult "NTFS Path" $targetPath "PASS" "Directory exists on target disk."
+
+                # Compare the applied security descriptor against the captured SDDL
+                if ($entry.Sddl) {
+                    try {
+                        $currentSddl = (Get-Acl -LiteralPath $targetPath).Sddl
+                        if ($currentSddl -eq $entry.Sddl) {
+                            Record-TestResult "NTFS ACL" $targetPath "PASS" "SDDL security descriptor matches source exactly."
+                        } else {
+                            Record-TestResult "NTFS ACL" $targetPath "WARN" "SDDL differs from source; review with Get-Acl (owner or inherited ACEs may legitimately differ)."
+                        }
+                    }
+                    catch {
+                        Record-TestResult "NTFS ACL" $targetPath "WARN" "Could not read target ACL: $_"
+                    }
+                }
             } else {
-                Record-TestResult "NTFS Path" $entry.Path "WARN" "Directory path does not exist on target disk."
+                Record-TestResult "NTFS Path" $targetPath "WARN" "Directory path does not exist on target disk."
             }
         }
     }

@@ -86,42 +86,114 @@ $contentManifest = [ordered]@{
     Archives       = @()
 }
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression           # ZipArchive, ZipArchiveMode, CompressionLevel
+Add-Type -AssemblyName System.IO.Compression.FileSystem # ZipFile, ZipFileExtensions
 
 $index = 1
 foreach ($sourcePath in $targetPaths) {
-    # Clean identifier name from path
+    # Clean identifier name from path; cap length (deep source paths would push the
+    # zip path past MAX_PATH) with a short hash suffix to keep names unique
     $safeName = ($sourcePath -replace '[:\\/]', '_').Trim('_')
+    if ($safeName.Length -gt 80) {
+        $sha1 = [System.Security.Cryptography.SHA1]::Create()
+        $pathHash = ([System.BitConverter]::ToString($sha1.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($sourcePath))) -replace '-').Substring(0, 8)
+        $sha1.Dispose()
+        $safeName = $safeName.Substring(0, 71) + "_" + $pathHash
+    }
     $zipFileName = "$safeName.zip"
     $zipFilePath = Join-Path -Path $resolvedOutputDir -ChildPath $zipFileName
 
     Write-Host "`n[$index/$($targetPaths.Count)] Processing: $sourcePath" -ForegroundColor Cyan
     $index++
 
+    # Enumerate files up front so log exclusion and per-file error handling apply
+    # in both modes; a single locked file must not abort the whole export.
+    $rootFull = [System.IO.Path]::GetFullPath($sourcePath).TrimEnd('\')
+    $allFiles = @(Get-ChildItem -LiteralPath $sourcePath -Recurse -File -Force -ErrorAction SilentlyContinue)
+    $included = @()
+    $excludedLogCount = 0
+    foreach ($f in $allFiles) {
+        $rel = $f.FullName.Substring($rootFull.Length).TrimStart('\')
+        if ($ExcludeLogs -and $rel -match '(^|\\)(logs|logfiles)(\\|$)') {
+            $excludedLogCount++
+            continue
+        }
+        $included += [pscustomobject]@{ File = $f; RelativePath = $rel }
+    }
+    if ($excludedLogCount -gt 0) {
+        Write-Host "  Excluding $excludedLogCount log file(s) (-ExcludeLogs)" -ForegroundColor Gray
+    }
+
     if ($Compress) {
         if (Test-Path -LiteralPath $zipFilePath) {
             Remove-Item -LiteralPath $zipFilePath -Force
         }
 
-        Write-Host "  Compressing to $zipFileName..." -ForegroundColor Gray
+        Write-Host "  Compressing $($included.Count) file(s) to $zipFileName..." -ForegroundColor Gray
+        $skippedLocked = 0
+        $zip = [System.IO.Compression.ZipFile]::Open($zipFilePath, [System.IO.Compression.ZipArchiveMode]::Create)
         try {
-            [System.IO.Compression.ZipFile]::CreateFromDirectory($sourcePath, $zipFilePath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
-            $fileInfo = Get-Item -LiteralPath $zipFilePath
-            $sha256 = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash
-
-            $contentManifest.Archives += [ordered]@{
-                OriginalPath = $sourcePath
-                SafeName     = $safeName
-                ArchiveFile  = $zipFileName
-                SizeBytes    = $fileInfo.Length
-                SizeMB       = [math]::Round($fileInfo.Length / 1MB, 2)
-                Sha256       = $sha256
+            foreach ($item in $included) {
+                try {
+                    $entryName = $item.RelativePath -replace '\\', '/'
+                    $null = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                        $zip, $item.File.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+                }
+                catch {
+                    $skippedLocked++
+                    Write-Warning "Skipped locked/unreadable file: $($item.File.FullName)"
+                }
             }
-            Write-Host "  [+] Created: $zipFileName ($([math]::Round($fileInfo.Length / 1MB, 2)) MB, SHA256: $sha256)" -ForegroundColor Green
         }
-        catch {
-            Write-Error "Failed to compress $sourcePath: $_"
+        finally {
+            $zip.Dispose()
         }
+
+        $fileInfo = Get-Item -LiteralPath $zipFilePath
+        $sha256 = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash
+
+        $contentManifest.Archives += [ordered]@{
+            OriginalPath      = $sourcePath
+            SafeName          = $safeName
+            Mode              = "Zip"
+            ArchiveFile       = $zipFileName
+            SizeBytes         = $fileInfo.Length
+            SizeMB            = [math]::Round($fileInfo.Length / 1MB, 2)
+            Sha256            = $sha256
+            FileCount         = $included.Count - $skippedLocked
+            ExcludedLogFiles  = $excludedLogCount
+            SkippedLockedFiles = $skippedLocked
+        }
+        Write-Host "  [+] Created: $zipFileName ($([math]::Round($fileInfo.Length / 1MB, 2)) MB, SHA256: $sha256)" -ForegroundColor Green
+    }
+    else {
+        # Inventory mode: no archive, just a checksummed file listing for sync/diff tooling
+        Write-Host "  Building checksum inventory for $($included.Count) file(s)..." -ForegroundColor Gray
+        $fileEntries = @()
+        foreach ($item in $included) {
+            $hash = $null
+            try {
+                $hash = (Get-FileHash -LiteralPath $item.File.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+            }
+            catch {
+                Write-Warning "Could not hash locked/unreadable file: $($item.File.FullName)"
+            }
+            $fileEntries += [ordered]@{
+                RelativePath = $item.RelativePath
+                SizeBytes    = $item.File.Length
+                Sha256       = $hash
+            }
+        }
+
+        $contentManifest.Archives += [ordered]@{
+            OriginalPath     = $sourcePath
+            SafeName         = $safeName
+            Mode             = "Inventory"
+            FileCount        = $fileEntries.Count
+            ExcludedLogFiles = $excludedLogCount
+            Files            = $fileEntries
+        }
+        Write-Host "  [+] Inventoried: $sourcePath ($($fileEntries.Count) files)" -ForegroundColor Green
     }
 }
 

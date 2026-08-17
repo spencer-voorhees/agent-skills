@@ -61,6 +61,19 @@ The `windows-vm-twin` skill captures the entire configuration profile of a Windo
 
 ---
 
+## Production Guard Rails (Target Side)
+
+`Apply-TargetVmTwin.ps1` is the only script that mutates a machine, and it is fenced for production use:
+
+- **Dry-run first**: every stage honors `-WhatIf`, reporting what it would change without touching the machine.
+- **Wrong-server protection**: the script refuses to run when the local hostname matches the source VM recorded in the manifest — i.e. it was accidentally launched on the production source instead of the target. Override with `-AllowSourceHostName` only when the target legitimately reuses the source hostname.
+- **System-path protection**: content extraction, SDDL replay, and share creation refuse drive roots and anything under `C:\Windows`, so a bad `PathMappings` entry cannot rewrite the security descriptor of `C:\`.
+- **Idempotent re-runs**: existing app pools and sites are updated in place, existing shares and firewall rules are skipped, and content extraction overwrites cleanly — a failed run can be resumed without cleanup.
+
+**Handling the export bundle**: the manifests contain hostnames, machine environment variables, ACL SDDL strings, and SMTP relay lists. No passwords are ever captured, but treat the bundle — and `twin-parameters.json`, which may hold target credentials you add — as sensitive: restrict access and transfer over secure channels. Content archival reads every site/share file, so for large content sets schedule `Export-SiteContent.ps1` in a low-traffic window.
+
+---
+
 ## 4-Phase Lifecycle
 
 ### Phase 1: Source Discovery & Extraction (Source VM)
@@ -72,7 +85,7 @@ Run the discovery script in an elevated PowerShell session on the Source VM:
 .\scripts\Export-SourceVmTwin.ps1 -OutputDir "C:\VM-Twin-Export" -IncludeCertificates -IncludeFirewall
 
 # 2. Package website and share contents with hash validation (Read-Only)
-.\scripts\Export-SiteContent.ps1 -OutputDir "C:\VM-Twin-Export\Content" -Compress
+.\scripts\Export-SiteContent.ps1 -ManifestDir "C:\VM-Twin-Export" -OutputDir "C:\VM-Twin-Export\Content" -Compress
 ```
 
 #### What is Extracted:
@@ -82,7 +95,7 @@ Run the discovery script in an elevated PowerShell session on the Source VM:
 | `windows-features.json` | Installed Windows Server Roles and Features (IIS sub-features, ASP.NET, SMTP Server, Tools). |
 | `iis-apppools.json` | Application Pools: .NET CLR version, 32-bit mode, Pipeline Mode, Identity (Service Accounts/Custom), Recycling limits, Idle timeouts, CPU throttles. |
 | `iis-sites.json` | Websites, Applications, Virtual Directories: Physical paths, AppPool mappings, bindings (HTTP/HTTPS/IP/Ports/Hostheaders), SSL certificate thumbprints. |
-| `iis-global.json` | Global IIS modules, HTTP handlers, Request Filtering rules, and backup of `applicationHost.config`. |
+| `applicationHost.config.bak` | Raw read-only snapshot of the full IIS `applicationHost.config` (global modules, handlers, request filtering) for reference and diffing. |
 | `smb-shares.json` | SMB Network Shares: Share names, physical paths, descriptions, caching modes, Share-level permissions (Read, Change, FullControl). |
 | `ntfs-acls.json` | NTFS Access Control Lists for all site directories and share roots: Preserved as structured ACEs and Security Descriptor Definition Language (SDDL). |
 | `smtp-config.json` | IIS 6.0 SMTP Server (`SmtpSvc/1`): Port bindings, IP addresses, Relay IP restrictions (`RelayIpList`), Smart Host (`SmartHost`), Drop Directory (`DropDir`), Pickup/BadMail dirs, authentication, connection limits. |
@@ -107,8 +120,8 @@ Synthesize the extracted bundle into a customized target blueprint:
 
 #### Blueprint Artifacts Generated:
 1. `twin-parameters.json`: Configuration overrides file where you can customize:
-   - Target drive letters / path mappings (e.g. `D:\Sites` $\rightarrow$ `E:\WebSites`).
-   - Domain or service account remapping (e.g. `OLDDOM\svc_web` $\rightarrow$ `NEWDOM\svc_web` or local accounts).
+   - Target drive letters / path mappings (e.g. `D:\Sites` → `E:\WebSites`).
+   - Domain or service account remapping (e.g. `OLDDOM\svc_web` → `NEWDOM\svc_web` or local accounts).
    - IP address and SSL certificate thumbprint re-bindings.
    - SMTP Smart Host or Relay overrides for the new environment.
 2. `Target-Replay-Runbook.md`: A markdown execution runbook detailing exact commands, dependencies, and validation checkpoints.
@@ -117,7 +130,7 @@ Synthesize the extracted bundle into a customized target blueprint:
 
 ### Phase 3: Target VM Replay & Provisioning (Blank Target VM)
 
-Transfer the blueprint and content archives to the blank target VM and run the replay engine:
+Transfer the blueprint and content archives to the blank target VM and run the replay engine. Every stage supports `-WhatIf` for a dry run that reports what would change without touching the machine:
 
 ```powershell
 # Run the complete automated provisioning pipeline
@@ -144,10 +157,10 @@ Transfer the blueprint and content archives to the blank target VM and run the r
 3. **Content**: Restores file trees for websites and shared folders to target physical locations.
 4. **ACLs**: Replays exact NTFS security descriptors (SDDL) and permissions across all restored folders.
 5. **Shares**: Provisions SMB shares with matching share names, descriptions, and share-level permissions.
-6. **IIS**: Rebuilds Application Pools (identities, recycling, 32-bit), Sites, Virtual Directories, Bindings, and Request Filtering.
+6. **IIS**: Rebuilds Application Pools (identities, recycling, 32-bit), Sites, Virtual Directories, and Bindings (including SNI SSL flags and certificate re-binding).
 7. **SMTP**: Configures IIS 6.0 SMTP Server via ADSI (Relay IP list, Smart Host, Drop directory, connection limits).
 8. **Service**: Sets `SMTPSVC` startup type and failure recovery actions (`sc.exe failure` to restart automatically on crash).
-9. **Firewall**: Configures inbound/outbound Windows Firewall rules matching the source server profile.
+9. **Firewall**: Recreates the inbound Windows Firewall rules captured from the source (falls back to standard HTTP/HTTPS/SMTP/SMB rules when no manifest is present).
 
 ---
 
@@ -165,8 +178,8 @@ Validate the provisioned target VM against the source manifest:
 The script outputs a comprehensive verification report:
 - **Feature Parity**: Validates all source Windows features are installed.
 - **IIS State**: Verifies AppPools are running, configured with correct identities, and sites are listening on expected bindings.
-- **HTTP / Endpoint Health**: Executes local HTTP/HTTPS probe requests against site endpoints.
-- **SMB & NTFS Integrity**: Confirms network shares are active and file ACLs match the source SDDL.
+- **HTTP / Endpoint Health**: TCP listener probes for every HTTP/HTTPS binding, plus HTTP response probes against HTTP endpoints.
+- **SMB & NTFS Integrity**: Confirms network shares exist at the mapped target paths and directory ACLs match the source SDDL exactly.
 - **SMTP Service & Configuration**: Verifies SMTP port 25 listener, relay restrictions, drop directory path, and `sc.exe qfailure` recovery settings.
 
 ---

@@ -30,7 +30,10 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("All", "Features", "Accounts", "Content", "Acls", "Shares", "Iis", "Smtp", "Service", "Firewall")]
-    [string]$Step = "All"
+    [string]$Step = "All",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowSourceHostName
 )
 
 $ErrorActionPreference = "Continue"
@@ -77,10 +80,33 @@ function Resolve-TargetPath([string]$sourcePath) {
     return $sourcePath
 }
 
+# Guard rail: never write content, ACLs, or shares to a drive root or inside
+# the Windows directory - a bad PathMappings entry must not be able to rewrite
+# the security descriptor of C:\ or extract archives into C:\Windows.
+function Test-SafeTargetPath([string]$path) {
+    if ([string]::IsNullOrWhiteSpace($path)) { return $false }
+    try { $full = [System.IO.Path]::GetFullPath($path) } catch { return $false }
+    $root = [System.IO.Path]::GetPathRoot($full)
+    if ($full.TrimEnd('\') -eq $root.TrimEnd('\')) { return $false }
+    $sysRoot = $env:SystemRoot.TrimEnd('\')
+    if ($full.TrimEnd('\') -eq $sysRoot -or $full -like "$sysRoot\*") { return $false }
+    return $true
+}
+
+# Guard rail: refuse to run on the source server itself. This script is only
+# meant for the blank target VM; the most dangerous mistake is running it in
+# the wrong RDP session on the production source.
+$sysMeta = Load-Manifest "system-metadata.json"
+if ($sysMeta -and $sysMeta.ComputerName -and $sysMeta.ComputerName -eq $env:COMPUTERNAME -and -not $AllowSourceHostName) {
+    Write-Error ("Refusing to run: this machine's hostname ($env:COMPUTERNAME) matches the SOURCE VM captured in the manifest. " +
+        "Apply-TargetVmTwin.ps1 must run on the blank TARGET VM. If the target legitimately reuses the source hostname, re-run with -AllowSourceHostName.")
+    return
+}
+
 # -------------------------------------------------------------
 # STEP: Features
 # -------------------------------------------------------------
-if ($Step -in @("All", "Features")) {
+if ($Step -in @("All", "Features") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Install Windows features and server roles")) {
     Write-Host "`n[Stage: Features] Installing Windows Features and Server Roles..." -ForegroundColor Cyan
     $features = Load-Manifest "windows-features.json"
     if ($features) {
@@ -101,7 +127,7 @@ if ($Step -in @("All", "Features")) {
                     }
                 }
                 catch {
-                    Write-Warning "Could not install feature $fn: $_"
+                    Write-Warning "Could not install feature ${fn}: $_"
                 }
             }
         }
@@ -120,7 +146,7 @@ if ($Step -in @("All", "Features")) {
 # -------------------------------------------------------------
 # STEP: Accounts
 # -------------------------------------------------------------
-if ($Step -in @("All", "Accounts")) {
+if ($Step -in @("All", "Accounts") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Create local service accounts")) {
     Write-Host "`n[Stage: Accounts] Configuring Local Service Accounts..." -ForegroundColor Cyan
     if ($parameters -and $parameters.AccountMappings) {
         foreach ($accProp in $parameters.AccountMappings.PSObject.Properties) {
@@ -144,9 +170,8 @@ if ($Step -in @("All", "Accounts")) {
 # -------------------------------------------------------------
 # STEP: Content
 # -------------------------------------------------------------
-if ($Step -in @("All", "Content")) {
+if ($Step -in @("All", "Content") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Restore website and share content archives")) {
     Write-Host "`n[Stage: Content] Restoring Website & Share Content Archives..." -ForegroundColor Cyan
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
 
     $resolvedContentDir = [System.IO.Path]::GetFullPath($ContentDir)
     $contentManifestPath = Join-Path -Path $resolvedContentDir -ChildPath "content-manifest.json"
@@ -154,30 +179,51 @@ if ($Step -in @("All", "Content")) {
     if (Test-Path -LiteralPath $contentManifestPath) {
         $cManifest = Get-Content -LiteralPath $contentManifestPath -Raw | ConvertFrom-Json
         foreach ($arch in $cManifest.Archives) {
+            if (-not $arch.ArchiveFile) {
+                Write-Warning "Entry for $($arch.OriginalPath) is an inventory (no archive); nothing to extract."
+                continue
+            }
             $archiveFile = Join-Path -Path $resolvedContentDir -ChildPath $arch.ArchiveFile
             $targetDest = Resolve-TargetPath $arch.OriginalPath
+
+            if (-not (Test-SafeTargetPath $targetDest)) {
+                Write-Warning "Refusing to extract $($arch.ArchiveFile) to unsafe target path '$targetDest' (drive root or Windows directory). Fix PathMappings in twin-parameters.json."
+                continue
+            }
 
             if (Test-Path -LiteralPath $archiveFile) {
                 Write-Host "  Extracting $($arch.ArchiveFile) to $targetDest..." -ForegroundColor Gray
                 if (-not (Test-Path -LiteralPath $targetDest)) {
                     $null = New-Item -ItemType Directory -Path $targetDest -Force
                 }
-                [System.IO.Compression.ZipFile]::ExtractToDirectory($archiveFile, $targetDest)
+                # Expand-Archive -Force overwrites on re-run; ZipFile::ExtractToDirectory throws
+                # if any destination file already exists.
+                Expand-Archive -LiteralPath $archiveFile -DestinationPath $targetDest -Force
                 Write-Host "  [+] Restored content: $targetDest" -ForegroundColor Green
             }
+            else {
+                Write-Warning "Archive not found: $archiveFile"
+            }
         }
+    }
+    else {
+        Write-Warning "content-manifest.json not found in $resolvedContentDir; no content restored."
     }
 }
 
 # -------------------------------------------------------------
 # STEP: Acls
 # -------------------------------------------------------------
-if ($Step -in @("All", "Acls")) {
+if ($Step -in @("All", "Acls") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Apply NTFS ACLs (SDDL)")) {
     Write-Host "`n[Stage: Acls] Replaying NTFS Access Control Lists (SDDL)..." -ForegroundColor Cyan
     $acls = Load-Manifest "ntfs-acls.json"
     if ($acls) {
         foreach ($entry in $acls) {
             $targetPath = Resolve-TargetPath $entry.Path
+            if (-not (Test-SafeTargetPath $targetPath)) {
+                Write-Warning "Refusing to apply SDDL to unsafe target path '$targetPath' (drive root or Windows directory). Apply manually if genuinely intended."
+                continue
+            }
             if (Test-Path -LiteralPath $targetPath) {
                 Write-Host "  Applying ACL to $targetPath..." -ForegroundColor Gray
                 try {
@@ -189,7 +235,7 @@ if ($Step -in @("All", "Acls")) {
                     }
                 }
                 catch {
-                    Write-Warning "Could not apply SDDL to $targetPath: $_"
+                    Write-Warning "Could not apply SDDL to ${targetPath}: $_"
                 }
             }
         }
@@ -199,12 +245,16 @@ if ($Step -in @("All", "Acls")) {
 # -------------------------------------------------------------
 # STEP: Shares
 # -------------------------------------------------------------
-if ($Step -in @("All", "Shares")) {
+if ($Step -in @("All", "Shares") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Create SMB network shares")) {
     Write-Host "`n[Stage: Shares] Provisioning SMB Network Shares..." -ForegroundColor Cyan
     $shares = Load-Manifest "smb-shares.json"
     if ($shares -and (Get-Command -Name New-SmbShare -ErrorAction SilentlyContinue)) {
         foreach ($sh in $shares) {
             $targetPath = Resolve-TargetPath $sh.Path
+            if (-not (Test-SafeTargetPath $targetPath)) {
+                Write-Warning "Refusing to create share '$($sh.Name)' at unsafe target path '$targetPath' (drive root or Windows directory). Fix PathMappings in twin-parameters.json."
+                continue
+            }
             if (-not (Test-Path -LiteralPath $targetPath)) {
                 $null = New-Item -ItemType Directory -Path $targetPath -Force
             }
@@ -244,7 +294,7 @@ if ($Step -in @("All", "Shares")) {
 # -------------------------------------------------------------
 # STEP: IIS
 # -------------------------------------------------------------
-if ($Step -in @("All", "Iis")) {
+if ($Step -in @("All", "Iis") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Rebuild IIS application pools, sites, and bindings")) {
     Write-Host "`n[Stage: IIS] Rebuilding Application Pools, Sites, and Bindings..." -ForegroundColor Cyan
     try {
         [System.Reflection.Assembly]::LoadFrom("$env:SystemRoot\System32\inetsrv\Microsoft.Web.Administration.dll") | Out-Null
@@ -271,12 +321,18 @@ if ($Step -in @("All", "Iis")) {
 
                 # Identity
                 if ($p.ProcessModel) {
-                    if ($p.ProcessModel.IdentityType -eq "SpecificUser" -and $parameters -and $parameters.AccountMappings) {
-                        $mapped = $parameters.AccountMappings.PSObject.Properties[$p.ProcessModel.UserName]
+                    if ($p.ProcessModel.IdentityType -eq "SpecificUser") {
+                        $mapped = $null
+                        if ($parameters -and $parameters.AccountMappings) {
+                            $mapped = $parameters.AccountMappings.PSObject.Properties[$p.ProcessModel.UserName]
+                        }
                         if ($mapped -and $mapped.Value.TargetPassword -and $mapped.Value.TargetPassword -ne "REPLACE_WITH_TARGET_PASSWORD_OR_LEAVE_EMPTY") {
                             $pool.ProcessModel.IdentityType = [Microsoft.Web.Administration.ProcessModelIdentityType]::SpecificUser
                             $pool.ProcessModel.UserName = $mapped.Value.TargetUserName
                             $pool.ProcessModel.Password = $mapped.Value.TargetPassword
+                        }
+                        else {
+                            Write-Warning "AppPool $($p.Name) ran as custom identity '$($p.ProcessModel.UserName)' on the source, but no password is set in twin-parameters.json AccountMappings; leaving default identity."
                         }
                     }
                     elseif ($p.ProcessModel.IdentityType -in @("ApplicationPoolIdentity", "NetworkService", "LocalSystem", "LocalService")) {
@@ -311,11 +367,17 @@ if ($Step -in @("All", "Iis")) {
                     $null = New-Item -ItemType Directory -Path $rootPath -Force
                 }
 
+                $siteBindings = @($s.Bindings)
+                if ($siteBindings.Count -eq 0) {
+                    Write-Warning "Site $($s.Name) has no captured bindings; skipping."
+                    continue
+                }
+
                 $site = $sm.Sites[$s.Name]
                 if (-not $site) {
                     Write-Host "  Creating IIS Site: $($s.Name)..." -ForegroundColor Gray
                     # Initial dummy binding
-                    $firstBinding = $s.Bindings[0]
+                    $firstBinding = $siteBindings[0]
                     $site = $sm.Sites.Add($s.Name, $firstBinding.Protocol, $firstBinding.BindingInformation, $rootPath)
                 }
 
@@ -323,10 +385,20 @@ if ($Step -in @("All", "Iis")) {
 
                 # Clear and re-apply bindings
                 $site.Bindings.Clear()
-                foreach ($b in $s.Bindings) {
+                foreach ($b in $siteBindings) {
                     $binding = $site.Bindings.CreateElement()
                     $binding.Protocol = $b.Protocol
                     $binding.BindingInformation = $b.BindingInformation
+
+                    # Restore SNI / Central Cert Store flags (IIS 8+); harmless no-op otherwise
+                    if ($b.SslFlags -and $b.SslFlags -notin @("None", "0")) {
+                        try {
+                            $binding.SslFlags = [Microsoft.Web.Administration.SslFlags]$b.SslFlags
+                        }
+                        catch {
+                            Write-Warning "Could not restore SslFlags '$($b.SslFlags)' on binding $($b.BindingInformation) (requires IIS 8+)."
+                        }
+                    }
 
                     # SSL Certificate lookup
                     if ($b.Protocol -eq "https" -and $b.CertificateThumbprint) {
@@ -389,7 +461,7 @@ if ($Step -in @("All", "Iis")) {
 # -------------------------------------------------------------
 # STEP: SMTP (IIS 6.0)
 # -------------------------------------------------------------
-if ($Step -in @("All", "Smtp")) {
+if ($Step -in @("All", "Smtp") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Configure IIS 6.0 SMTP server")) {
     Write-Host "`n[Stage: SMTP] Configuring IIS 6.0 SMTP Server..." -ForegroundColor Cyan
     $smtpConfig = Load-Manifest "smtp-config.json"
     $smtpAdsiPath = "IIS://localhost/SmtpSvc/1"
@@ -398,9 +470,10 @@ if ($Step -in @("All", "Smtp")) {
         try {
             if ([System.DirectoryServices.DirectoryEntry]::Exists($smtpAdsiPath)) {
                 $adsi = [ADSI]$smtpAdsiPath
+                $smtpOverrides = if ($parameters) { $parameters.SmtpOverrides } else { $null }
 
                 # Ensure Drop/Pickup/BadMail directories
-                $dropDir = if ($parameters.SmtpOverrides.DropDir) { $parameters.SmtpOverrides.DropDir } else { $smtpConfig.Properties.DropDir }
+                $dropDir = if ($smtpOverrides -and $smtpOverrides.DropDir) { $smtpOverrides.DropDir } else { $smtpConfig.Properties.DropDir }
                 if ($dropDir -and -not (Test-Path -LiteralPath $dropDir)) {
                     $null = New-Item -ItemType Directory -Path $dropDir -Force
                 }
@@ -408,17 +481,38 @@ if ($Step -in @("All", "Smtp")) {
                 if ($dropDir) { $adsi.Properties["DropDir"].Value = $dropDir }
                 if ($smtpConfig.Properties.PickupDir) { $adsi.Properties["PickupDir"].Value = $smtpConfig.Properties.PickupDir }
                 if ($smtpConfig.Properties.BadMailDir) { $adsi.Properties["BadMailDir"].Value = $smtpConfig.Properties.BadMailDir }
-                if ($parameters.SmtpOverrides.SmartHost) {
-                    $adsi.Properties["SmartHost"].Value = $parameters.SmtpOverrides.SmartHost
+                if ($smtpOverrides -and $smtpOverrides.SmartHost) {
+                    $adsi.Properties["SmartHost"].Value = $smtpOverrides.SmartHost
                 } elseif ($smtpConfig.Properties.SmartHost) {
                     $adsi.Properties["SmartHost"].Value = $smtpConfig.Properties.SmartHost
                 }
 
-                if ($smtpConfig.Properties.Port) { $adsi.Properties["Port"].Value = [int]$smtpConfig.Properties.Port }
+                $smtpPort = if ($smtpOverrides -and $smtpOverrides.Port) { $smtpOverrides.Port } else { $smtpConfig.Properties.Port }
+                if ($smtpPort) { $adsi.Properties["Port"].Value = [int]$smtpPort }
                 if ($smtpConfig.Properties.MaxMessageSize) { $adsi.Properties["MaxMessageSize"].Value = [int]$smtpConfig.Properties.MaxMessageSize }
 
-                # Restore binary Relay IP list if captured
-                if ($smtpConfig.RelayRestrictions -and $smtpConfig.RelayRestrictions.Base64 -and $parameters.SmtpOverrides.ApplyRelayList) {
+                # Replay remaining captured scalar settings
+                $replayProps = @(
+                    "MaxConnections", "ConnectionTimeout", "MaxHopCount", "MaxRecipients",
+                    "FullyQualifiedDomainName", "DefaultDomain", "DoReverseDnsLookup",
+                    "LogType", "LogFileDirectory", "LogFilePeriod"
+                )
+                foreach ($rp in $replayProps) {
+                    $val = $smtpConfig.Properties.$rp
+                    if ($null -ne $val) {
+                        if ($val -is [long]) { $val = [int]$val }  # JSON numbers deserialize as Int64; ADSI wants Int32
+                        try { $adsi.Properties[$rp].Value = $val }
+                        catch { Write-Warning "Could not replay SMTP property ${rp}: $_" }
+                    }
+                }
+
+                # Restore binary Relay IP list if captured (on by default; disable via
+                # SmtpOverrides.ApplyRelayList = false in twin-parameters.json)
+                $applyRelay = $true
+                if ($smtpOverrides -and $smtpOverrides.PSObject.Properties['ApplyRelayList']) {
+                    $applyRelay = [bool]$smtpOverrides.ApplyRelayList
+                }
+                if ($smtpConfig.RelayRestrictions -and $smtpConfig.RelayRestrictions.Base64 -and $applyRelay) {
                     $relayBytes = [System.Convert]::FromBase64String($smtpConfig.RelayRestrictions.Base64)
                     $adsi.Properties["RelayIpList"].Value = $relayBytes
                     Write-Host "  [+] Restored SMTP Relay IP Restrictions list" -ForegroundColor Green
@@ -441,60 +535,116 @@ if ($Step -in @("All", "Smtp")) {
 # -------------------------------------------------------------
 # STEP: SMTPSVC Service Recovery & Auto-Restart
 # -------------------------------------------------------------
-if ($Step -in @("All", "Service")) {
+if ($Step -in @("All", "Service") -and $PSCmdlet.ShouldProcess("SMTPSVC", "Configure service startup and failure recovery actions")) {
     Write-Host "`n[Stage: Service] Configuring SMTPSVC Service Startup & Auto-Restart Actions..." -ForegroundColor Cyan
     $smtpService = Load-Manifest "smtp-service.json"
     if ($smtpService -and $smtpService.ServiceFound) {
-        # Set Startup Type
-        Set-Service -Name SMTPSVC -StartupType Automatic -ErrorAction SilentlyContinue
+        # Replay captured startup type (fall back to Automatic for unmappable values)
+        $startType = if ($smtpService.StartType -in @("Automatic", "Manual", "Disabled")) { $smtpService.StartType } else { "Automatic" }
+        Set-Service -Name SMTPSVC -StartupType $startType -ErrorAction SilentlyContinue
 
-        # Configure Failure Actions via sc.exe failure
-        $resetSeconds = 86400
-        $restartDelayMs = 60000
-
-        if ($parameters -and $parameters.ServiceRecoveryOverrides) {
-            if ($parameters.ServiceRecoveryOverrides.ResetPeriodSeconds) {
-                $resetSeconds = $parameters.ServiceRecoveryOverrides.ResetPeriodSeconds
-            }
-            if ($parameters.ServiceRecoveryOverrides.RestartDelayMilliseconds) {
-                $restartDelayMs = $parameters.ServiceRecoveryOverrides.RestartDelayMilliseconds
-            }
-        }
-        elseif ($smtpService.RecoverySettings -and $smtpService.RecoverySettings.ResetPeriodSeconds) {
-            $resetSeconds = $smtpService.RecoverySettings.ResetPeriodSeconds
+        # Honor ConfigureSmtpAutoRestart from twin-parameters.json (default: configure)
+        $configureRestart = $true
+        if ($parameters -and $parameters.ServiceRecoveryOverrides -and
+            $parameters.ServiceRecoveryOverrides.PSObject.Properties['ConfigureSmtpAutoRestart']) {
+            $configureRestart = [bool]$parameters.ServiceRecoveryOverrides.ConfigureSmtpAutoRestart
         }
 
-        # Build sc.exe command: restart/delay/restart/delay/restart/delay
-        $actionString = "restart/$restartDelayMs/restart/$restartDelayMs/restart/$restartDelayMs"
-        $scArgs = "failure SMTPSVC reset= $resetSeconds actions= $actionString"
+        if ($configureRestart) {
+            $resetSeconds = 86400
+            $restartDelayMs = 60000
 
-        Write-Host "  Executing: sc.exe $scArgs" -ForegroundColor Gray
-        $null = & "$env:SystemRoot\System32\sc.exe" failure SMTPSVC reset= $resetSeconds actions= $actionString
-        
-        # Start service
-        Start-Service -Name SMTPSVC -ErrorAction SilentlyContinue
-        Write-Host "  [+] Configured SMTPSVC failure recovery (Auto-Restart) and started service" -ForegroundColor Green
+            if ($parameters -and $parameters.ServiceRecoveryOverrides) {
+                if ($parameters.ServiceRecoveryOverrides.ResetPeriodSeconds) {
+                    $resetSeconds = $parameters.ServiceRecoveryOverrides.ResetPeriodSeconds
+                }
+                if ($parameters.ServiceRecoveryOverrides.RestartDelayMilliseconds) {
+                    $restartDelayMs = $parameters.ServiceRecoveryOverrides.RestartDelayMilliseconds
+                }
+            }
+            elseif ($smtpService.RecoverySettings -and $smtpService.RecoverySettings.ResetPeriodSeconds) {
+                $resetSeconds = $smtpService.RecoverySettings.ResetPeriodSeconds
+            }
+
+            # Prefer the exact captured action sequence; fall back to triple-restart
+            $actions = @()
+            if ($smtpService.RecoverySettings -and $smtpService.RecoverySettings.ActionsSequence) {
+                foreach ($a in @($smtpService.RecoverySettings.ActionsSequence)) {
+                    $verb = switch ($a.Action) {
+                        "RestartService" { "restart" }
+                        "RunCommand"     { "run" }
+                        "Reboot"         { "reboot" }
+                        default          { $null }
+                    }
+                    if ($verb) { $actions += "$verb/$($a.DelayMilliseconds)" }
+                }
+            }
+            if ($actions.Count -eq 0) {
+                $actions = @("restart/$restartDelayMs", "restart/$restartDelayMs", "restart/$restartDelayMs")
+            }
+            $actionString = $actions -join "/"
+
+            Write-Host "  Executing: sc.exe failure SMTPSVC reset= $resetSeconds actions= $actionString" -ForegroundColor Gray
+            $null = & "$env:SystemRoot\System32\sc.exe" failure SMTPSVC reset= $resetSeconds actions= $actionString
+        }
+        else {
+            Write-Host "  [=] ConfigureSmtpAutoRestart is false; skipping failure action configuration." -ForegroundColor Gray
+        }
+
+        # Start service unless the source had it disabled
+        if ($startType -ne "Disabled") {
+            Start-Service -Name SMTPSVC -ErrorAction SilentlyContinue
+        }
+        Write-Host "  [+] Configured SMTPSVC startup ($startType) and recovery actions" -ForegroundColor Green
     }
 }
 
 # -------------------------------------------------------------
 # STEP: Firewall
 # -------------------------------------------------------------
-if ($Step -in @("All", "Firewall")) {
+if ($Step -in @("All", "Firewall") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Create inbound Windows Firewall rules")) {
     Write-Host "`n[Stage: Firewall] Configuring Inbound Windows Firewall Rules..." -ForegroundColor Cyan
     if (Get-Command -Name New-NetFirewallRule -ErrorAction SilentlyContinue) {
-        $portsToOpen = @(
-            @{ Name = "Twin-HTTP-In";   Port = 80;  DisplayName = "Twin HTTP (Port 80 Inbound)" },
-            @{ Name = "Twin-HTTPS-In";  Port = 443; DisplayName = "Twin HTTPS (Port 443 Inbound)" },
-            @{ Name = "Twin-SMTP-In";   Port = 25;  DisplayName = "Twin SMTP (Port 25 Inbound)" },
-            @{ Name = "Twin-SMB-In";    Port = 445; DisplayName = "Twin SMB (Port 445 Inbound)" }
-        )
+        $fwManifest = Load-Manifest "firewall-rules.json"
 
-        foreach ($p in $portsToOpen) {
-            $existing = Get-NetFirewallRule -Name $p.Name -ErrorAction SilentlyContinue
-            if (-not $existing) {
-                New-NetFirewallRule -Name $p.Name -DisplayName $p.DisplayName -Direction Inbound -Protocol TCP -LocalPort $p.Port -Action Allow -ErrorAction SilentlyContinue | Out-Null
-                Write-Host "  [+] Created Firewall Rule: $($p.DisplayName)" -ForegroundColor Green
+        if ($fwManifest) {
+            # Recreate the rules actually captured from the source
+            foreach ($r in @($fwManifest)) {
+                if (-not $r.Name) { continue }
+                $existing = Get-NetFirewallRule -Name $r.Name -ErrorAction SilentlyContinue
+                if ($existing) {
+                    Write-Host "  [=] Firewall rule already exists: $($r.Name)" -ForegroundColor Gray
+                    continue
+                }
+
+                $proto = "$($r.Protocol)"
+                $rulePorts = @($r.LocalPort | Where-Object { "$_" -match '^\d+(-\d+)?$' })
+                if ($proto -notin @("TCP", "UDP") -or $rulePorts.Count -eq 0) {
+                    Write-Warning "Skipping firewall rule '$($r.DisplayName)' (protocol '$proto', ports '$($r.LocalPort)') - only concrete TCP/UDP port rules are replayed."
+                    continue
+                }
+
+                $displayName = if ($r.DisplayName) { $r.DisplayName } else { $r.Name }
+                New-NetFirewallRule -Name $r.Name -DisplayName $displayName -Direction Inbound -Protocol $proto -LocalPort $rulePorts -Action Allow -ErrorAction SilentlyContinue | Out-Null
+                Write-Host "  [+] Created Firewall Rule: $displayName" -ForegroundColor Green
+            }
+        }
+        else {
+            # No manifest captured: fall back to the standard web/mail/share ports
+            Write-Warning "firewall-rules.json not found; creating default HTTP/HTTPS/SMTP/SMB inbound rules."
+            $portsToOpen = @(
+                @{ Name = "Twin-HTTP-In";   Port = 80;  DisplayName = "Twin HTTP (Port 80 Inbound)" },
+                @{ Name = "Twin-HTTPS-In";  Port = 443; DisplayName = "Twin HTTPS (Port 443 Inbound)" },
+                @{ Name = "Twin-SMTP-In";   Port = 25;  DisplayName = "Twin SMTP (Port 25 Inbound)" },
+                @{ Name = "Twin-SMB-In";    Port = 445; DisplayName = "Twin SMB (Port 445 Inbound)" }
+            )
+
+            foreach ($p in $portsToOpen) {
+                $existing = Get-NetFirewallRule -Name $p.Name -ErrorAction SilentlyContinue
+                if (-not $existing) {
+                    New-NetFirewallRule -Name $p.Name -DisplayName $p.DisplayName -Direction Inbound -Protocol TCP -LocalPort $p.Port -Action Allow -ErrorAction SilentlyContinue | Out-Null
+                    Write-Host "  [+] Created Firewall Rule: $($p.DisplayName)" -ForegroundColor Green
+                }
             }
         }
     }

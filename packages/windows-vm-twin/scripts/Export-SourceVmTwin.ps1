@@ -64,7 +64,9 @@ function Write-ManifestJson {
     )
     $filePath = Join-Path -Path $resolvedOutputDir -ChildPath $FileName
     try {
-        $json = $Data | ConvertTo-Json -Depth 15
+        # -InputObject preserves empty and single-element arrays as JSON arrays
+        # (piping unrolls them: @() | ConvertTo-Json emits nothing at all).
+        $json = ConvertTo-Json -InputObject $Data -Depth 15
         [System.IO.File]::WriteAllText($filePath, $json, [System.Text.Encoding]::UTF8)
         $sha256 = (Get-FileHash -Path $filePath -Algorithm SHA256).Hash
         $manifestSummary.Components[$FileName] = [ordered]@{
@@ -76,7 +78,7 @@ function Write-ManifestJson {
         Write-Host "  [+] Exported: $FileName ($Description)" -ForegroundColor Green
     }
     catch {
-        Write-Warning "Failed to export $FileName: $_"
+        Write-Warning "Failed to export ${FileName}: $_"
         $manifestSummary.Components[$FileName] = [ordered]@{
             Status = "Failed"
             Error  = $_.ToString()
@@ -394,7 +396,7 @@ foreach ($path in $discoveredPhysicalPaths) {
             }
         }
         catch {
-            Write-Warning "Could not extract ACL for $path: $_"
+            Write-Warning "Could not extract ACL for ${path}: $_"
         }
     }
     else {
@@ -459,7 +461,8 @@ if ($smtpInstalled) {
                 $relayBytes = $adsi.Properties["RelayIpList"].Value
                 if ($null -ne $relayBytes) {
                     $relayInfo.RawBlobPresent = $true
-                    $relayInfo.Base64 = [System.Convert]::ToBase64String($relayBytes)
+                    # ADSI may surface the octet blob as object[]; coerce for Base64
+                    $relayInfo.Base64 = [System.Convert]::ToBase64String([byte[]]$relayBytes)
                 }
             }
             catch {}
@@ -590,11 +593,14 @@ Write-ManifestJson -FileName "ssl-certificates.json" -Data $certList -Descriptio
 Write-Host "`n[11/11] Querying Firewall Rules & Local Accounts..." -ForegroundColor Cyan
 $firewallList = @()
 if ($IncludeFirewall -and (Get-Command -Name Get-NetFirewallRule -ErrorAction SilentlyContinue)) {
-    $ports = @(80, 443, 25, 587, 445)
+    $relevantPorts = @("80", "443", "25", "587", "445")
     $rules = Get-NetFirewallRule -Enabled True -Direction Inbound -ErrorAction SilentlyContinue
     foreach ($r in $rules) {
         $portFilter = $r | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue
-        if ($portFilter.LocalPort -match "80|443|25|587|445" -or $r.DisplayGroup -match "World Wide Web|IIS|SMTP|File and Printer") {
+        # Exact port comparison (a substring regex like "80|25" would also match 8080, 2525, ...)
+        $rulePorts = @($portFilter.LocalPort | ForEach-Object { "$_" })
+        $portMatch = @($rulePorts | Where-Object { $relevantPorts -contains $_ }).Count -gt 0
+        if ($portMatch -or $r.DisplayGroup -match "World Wide Web|IIS|SMTP|File and Printer") {
             $firewallList += [ordered]@{
                 Name         = $r.Name
                 DisplayName  = $r.DisplayName
@@ -614,8 +620,14 @@ $localAccounts = [ordered]@{
     Groups = @()
 }
 if (Get-Command -Name Get-LocalUser -ErrorAction SilentlyContinue) {
-    $localAccounts.Users = @(Get-LocalUser | Select-Object Name, Enabled, Description, PasswordRequired, UserMayChangePassword)
-    $localAccounts.Groups = @(Get-LocalGroup | Select-Object Name, Description)
+    # Exclude built-in accounts: RID 500 Administrator, 501 Guest, 503 DefaultAccount,
+    # 504 WDAGUtilityAccount; and BUILTIN groups (SID prefix S-1-5-32).
+    $localAccounts.Users = @(Get-LocalUser |
+        Where-Object { $_.SID.Value -notmatch '-(500|501|503|504)$' } |
+        Select-Object Name, Enabled, Description, PasswordRequired, UserMayChangePassword)
+    $localAccounts.Groups = @(Get-LocalGroup |
+        Where-Object { $_.SID.Value -notlike 'S-1-5-32-*' } |
+        Select-Object Name, Description)
 }
 Write-ManifestJson -FileName "local-accounts.json" -Data $localAccounts -Description "Non-domain local users and groups"
 
@@ -677,7 +689,7 @@ foreach ($s in $siteList) {
         foreach ($app in $s.Applications) {
             [void]$reportBuilder.AppendLine("  - App Path: ``$($app.Path)`` (AppPool: **$($app.ApplicationPoolName)**)")
             foreach ($vd in $app.VirtualDirectories) {
-                [void]$reportBuilder.AppendLine("    - VDir ``$($vd.Path)`` $\rightarrow$ ``$($vd.PhysicalPath)``")
+                [void]$reportBuilder.AppendLine("    - VDir ``$($vd.Path)`` -> ``$($vd.PhysicalPath)``")
             }
         }
         [void]$reportBuilder.AppendLine("")
