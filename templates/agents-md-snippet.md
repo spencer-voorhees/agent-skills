@@ -31,6 +31,7 @@ Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 | Before any commit, PR, or merge; after finishing a milestone; auditing diffs against specs | `SKILLS_PATH/review/SKILL.md` |
 | Ending a session, "wrap up" / "checkpoint", logging an Architectural Decision Record (ADR), recording gotchas | `SKILLS_PATH/remember/SKILL.md` |
 | The same error has survived ~3 fix attempts, progress has stalled, or when stuck | `SKILLS_PATH/recover/SKILL.md` |
+| Cloning a Windows VM, read-only IIS/SMTP/SMB configuration discovery, twin provisioning & verification | `SKILLS_PATH/windows-vm-twin/SKILL.md` |
 
 Session habits, always in force:
 

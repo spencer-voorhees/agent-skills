@@ -6,6 +6,7 @@ The suite is organized into **independent, composable packages** that can be ins
 
 - **[`dev-workflow`](packages/dev-workflow/)**: The end-to-end software development lifecycle (Spec-Driven Development, Architecture RFCs, ADRs, Design Tokens, 6-Stage Pre-Commit Review, Session Memory, and Loop Recovery).
 - **[`frontend-design`](packages/frontend-design/SKILL.md)**: Standalone visual design & UI craft direction (distinctive aesthetic character, fluid scaling across mobile and 4K displays, light/dark mode parity, and anti-AI tropes).
+- **[`windows-vm-twin`](packages/windows-vm-twin/SKILL.md)**: Windows VM Configuration Cloning & Twin Generator (100% read-only discovery, IIS sites/AppPools, SMB shares, NTFS ACLs, installed Windows features, IIS 6.0 SMTP, and SMTPSVC auto-restart/recovery actions).
 
 Works out of the box with **Claude Code, Cursor, Gemini CLI, OpenAI Codex CLI, GitHub Copilot, Antigravity**, and any tool that reads markdown instructions or complies with the [Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec) specification.
 
@@ -70,6 +71,22 @@ A standalone creative director skill for high-craft user interfaces:
 
 ---
 
+### 3. `windows-vm-twin` Package
+
+A Windows-specific configuration cloning and twin provisioning engine:
+
+| Skill | Purpose | Output Location |
+|---|---|---|
+| [`windows-vm-twin`](packages/windows-vm-twin/SKILL.md) | 100% read-only discovery, deterministic JSON manifests, target provisioning engine, and drift verification. | `VM-Twin-Export/` & `VM-Twin-Blueprint/` |
+
+#### Key Capabilities of `windows-vm-twin`:
+- **Zero-Mutation Source Discovery**: 100% read-only discovery using safe PowerShell cmdlets, ADSI readers, and `sc.exe qfailure`. No writes or service changes on the source VM.
+- **Complete Subsystem Coverage**: IIS 7+ Sites, AppPools (identities, recycling, 32-bit), SMB Network Shares, NTFS ACLs (SDDL fidelity), IIS 6.0 SMTP Server (`SmtpSvc/1` metabase & relay lists), and SMTPSVC auto-restart/recovery actions on failure.
+- **Automated & Manual Replay**: Includes parameterized target templates (`twin-parameters.json`) and automated replay scripts (`Apply-TargetVmTwin.ps1`) for AI agents or systems engineers.
+- **Drift & Parity Audit**: Automated post-migration verification (`Test-TargetVmTwin.ps1`) generating a markdown scorecard.
+
+---
+
 ## Installation & Setup
 
 ### Option 1: Universal CLI Installer (`install.sh`)
@@ -80,8 +97,11 @@ Clone this repo and install any package or individual skill:
 git clone https://github.com/spencer-voorhees/agent-skills
 cd your-project
 
-# Install everything (dev-workflow + frontend-design) and scaffold docs/:
+# Install everything (dev-workflow + frontend-design + windows-vm-twin) and scaffold docs/:
 path/to/agent-skills/install.sh agents . all --init-docs
+
+# Or install only windows-vm-twin:
+path/to/agent-skills/install.sh agents . windows-vm-twin
 
 # Or install only frontend-design:
 path/to/agent-skills/install.sh agents . frontend-design
@@ -112,6 +132,7 @@ Install directly as a plugin without cloning or vendoring files:
 # Install the packages you need:
 /plugin install dev-workflow@agent-skills
 /plugin install frontend-design@agent-skills
+/plugin install windows-vm-twin@agent-skills
 ```
 
 ---

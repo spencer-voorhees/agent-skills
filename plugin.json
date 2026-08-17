@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-skills",
-  "version": "0.3.0",
-  "description": "A suite of modular coding agent skill packages: dev-workflow (spec-driven development, architecture blueprints, ADRs, pre-commit review, session memory) and frontend-design (high-craft visual design & UI direction).",
+  "version": "0.4.0",
+  "description": "A suite of modular coding agent skill packages: dev-workflow (spec-driven development, architecture blueprints, ADRs, pre-commit review, session memory), frontend-design (high-craft visual design & UI direction), and windows-vm-twin (read-only Windows VM discovery, IIS/SMTP/SMB configuration cloning & twin provisioning).",
   "author": {
     "name": "Spencer Voorhees"
   },
@@ -17,6 +17,13 @@
     "design-tokens",
     "code-review",
     "session-memory",
-    "debugging"
+    "debugging",
+    "windows-server",
+    "vm-cloning",
+    "iis",
+    "smtp",
+    "smb",
+    "ntfs-acls",
+    "powershell"
   ]
 }

@@ -14,10 +14,11 @@
 #   agentsmd    AGENTS.md            Appends trigger-table snippet (for agents without native SKILL.md)
 #
 # Packages / Skills (default: all):
-#   all               Installs both dev-workflow and frontend-design
+#   all               Installs dev-workflow, frontend-design, and windows-vm-twin
 #   dev-workflow      Installs the 6 lifecycle skills (spec, architect, design-system, review, remember, recover)
 #   frontend-design   Installs the standalone visual design & UI craft skill
-#   <skill-name>      Installs any individual skill by name (e.g. spec, review, frontend-design)
+#   windows-vm-twin   Installs the Windows VM configuration cloning & twin provisioning skill
+#   <skill-name>      Installs any individual skill by name (e.g. spec, review, frontend-design, windows-vm-twin)
 #
 # Options:
 #   --init-docs       Scaffolds standard docs/ (specs, architecture, adr), .gitattributes, and .gitignore
@@ -92,6 +93,12 @@ if [ -n "$DEST" ]; then
     if [ -f "$skill_src/SKILL.md" ]; then
       cp "$skill_src/SKILL.md" "$TARGET/$DEST/$skill_name/SKILL.md"
     fi
+    if [ -d "$skill_src/scripts" ]; then
+      cp -r "$skill_src/scripts" "$TARGET/$DEST/$skill_name/"
+    fi
+    if [ -d "$skill_src/templates" ]; then
+      cp -r "$skill_src/templates" "$TARGET/$DEST/$skill_name/"
+    fi
     count=$((count + 1))
   }
 
@@ -108,6 +115,10 @@ if [ -n "$DEST" ]; then
       if [ -d "$SRC/packages/frontend-design" ]; then
         install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
       fi
+      # Install windows-vm-twin
+      if [ -d "$SRC/packages/windows-vm-twin" ]; then
+        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
+      fi
       ;;
     dev-workflow|workflow)
       for skill in "$SRC"/packages/dev-workflow/*/; do
@@ -122,12 +133,19 @@ if [ -n "$DEST" ]; then
         install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
       fi
       ;;
+    windows-vm-twin|win-twin|windows)
+      if [ -d "$SRC/packages/windows-vm-twin" ]; then
+        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
+      fi
+      ;;
     *)
       # Check if individual skill in dev-workflow
       if [ -d "$SRC/packages/dev-workflow/$PACKAGE" ]; then
         install_skill_dir "$SRC/packages/dev-workflow/$PACKAGE" "$PACKAGE"
       elif [ "$PACKAGE" = "frontend-design" ] && [ -d "$SRC/packages/frontend-design" ]; then
         install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
+      elif [ "$PACKAGE" = "windows-vm-twin" ] && [ -d "$SRC/packages/windows-vm-twin" ]; then
+        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
       else
         echo "error: unknown package or skill '$PACKAGE'" >&2
         exit 1

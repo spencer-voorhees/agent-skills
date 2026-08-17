@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "TargetEnvironment": {
+    "TargetHostName": "WIN-TARGET-VM01",
+    "TargetDomainOrWorkgroup": "CORP",
+    "ExecutionMode": "Automated"
+  },
+  "PathMappings": {
+    "C:\\inetpub\\wwwroot": "C:\\inetpub\\wwwroot",
+    "D:\\Sites\\App1": "D:\\Sites\\App1",
+    "D:\\Shares\\Data": "D:\\Shares\\Data"
+  },
+  "AccountMappings": {
+    "DOMAIN\\svc_apppool": {
+      "TargetUserName": "DOMAIN\\svc_apppool",
+      "TargetPassword": "REPLACE_WITH_TARGET_PASSWORD_OR_LEAVE_EMPTY"
+    },
+    "LOCAL_USER": {
+      "TargetUserName": "LOCAL_USER",
+      "TargetPassword": "REPLACE_WITH_TARGET_PASSWORD_OR_LEAVE_EMPTY"
+    }
+  },
+  "BindingOverrides": {
+    "*:443:app.domain.com": {
+      "Protocol": "https",
+      "Host": "app.domain.com",
+      "OriginalThumbprint": "0123456789ABCDEF0123456789ABCDEF01234567",
+      "TargetThumbprint": "0123456789ABCDEF0123456789ABCDEF01234567",
+      "CertificateStore": "My"
+    }
+  },
+  "SmtpOverrides": {
+    "SmartHost": "mailrelay.internal.corp",
+    "DropDir": "C:\\inetpub\\mailroot\\Drop",
+    "Port": 25,
+    "ApplyRelayList": true,
+    "AllowTargetIpRelay": true
+  },
+  "ServiceRecoveryOverrides": {
+    "ConfigureSmtpAutoRestart": true,
+    "ResetPeriodSeconds": 86400,
+    "RestartDelayMilliseconds": 60000
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WindowsVmTwinManifest",
+  "type": "object",
+  "required": [
+    "CaptureDateUtc",
+    "ComputerName",
+    "ExportDirectory",
+    "Components"
+  ],
+  "properties": {
+    "CaptureDateUtc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ComputerName": {
+      "type": "string"
+    },
+    "ExportDirectory": {
+      "type": "string"
+    },
+    "Components": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "Status": { "type": "string" },
+          "Description": { "type": "string" },
+          "Sha256": { "type": "string" },
+          "Bytes": { "type": "integer" }
+        }
+      }
+    }
+  }
+}
