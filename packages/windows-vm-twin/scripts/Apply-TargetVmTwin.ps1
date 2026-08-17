@@ -93,6 +93,24 @@ function Test-SafeTargetPath([string]$path) {
     return $true
 }
 
+# Translate a source account name to its target equivalent: strips the source
+# machine prefix from machine-local accounts (their SIDs cannot exist on the
+# target) and applies AccountMappings overrides from twin-parameters.json.
+function Resolve-TargetAccountName([string]$accountName) {
+    if ([string]::IsNullOrWhiteSpace($accountName)) { return $accountName }
+    $name = $accountName
+    if ($sysMeta -and $sysMeta.ComputerName -and $name -like "$($sysMeta.ComputerName)\*") {
+        $name = $name.Substring($sysMeta.ComputerName.Length + 1)
+    }
+    if ($parameters -and $parameters.AccountMappings) {
+        foreach ($key in @($accountName, $name)) {
+            $m = $parameters.AccountMappings.PSObject.Properties[$key]
+            if ($m -and $m.Value.TargetUserName) { return $m.Value.TargetUserName }
+        }
+    }
+    return $name
+}
+
 # Guard rail: refuse to run on the source server itself. This script is only
 # meant for the blank target VM; the most dangerous mistake is running it in
 # the wrong RDP session on the production source.
@@ -118,17 +136,22 @@ if ($Step -in @("All", "Features") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAM
 
         # Filter out features that might not be directly installable root tokens
         if (Get-Command -Name Install-WindowsFeature -ErrorAction SilentlyContinue) {
+            $rebootRequired = $false
             foreach ($fn in $featureNames) {
                 Write-Host "  Checking/Installing: $fn" -ForegroundColor Gray
                 try {
                     $res = Install-WindowsFeature -Name $fn -IncludeManagementTools -ErrorAction SilentlyContinue
                     if ($res.Success) {
+                        if ("$($res.RestartNeeded)" -eq "Yes") { $rebootRequired = $true }
                         Write-Host "  [+] Feature installed: $fn (RestartNeeded: $($res.RestartNeeded))" -ForegroundColor Green
                     }
                 }
                 catch {
                     Write-Warning "Could not install feature ${fn}: $_"
                 }
+            }
+            if ($rebootRequired) {
+                Write-Warning "One or more features require a REBOOT. Reboot the target VM, then re-run the remaining stages (they are safe to re-run)."
             }
         }
         elseif (Get-Command -Name Enable-WindowsOptionalFeature -ErrorAction SilentlyContinue) {
@@ -146,7 +169,7 @@ if ($Step -in @("All", "Features") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAM
 # -------------------------------------------------------------
 # STEP: Accounts
 # -------------------------------------------------------------
-if ($Step -in @("All", "Accounts") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Create local service accounts")) {
+if ($Step -in @("All", "Accounts") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "Create local service accounts and groups")) {
     Write-Host "`n[Stage: Accounts] Configuring Local Service Accounts..." -ForegroundColor Cyan
     if ($parameters -and $parameters.AccountMappings) {
         foreach ($accProp in $parameters.AccountMappings.PSObject.Properties) {
@@ -161,6 +184,35 @@ if ($Step -in @("All", "Accounts") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAM
                     $secPwd = ConvertTo-SecureString $targetPwd -AsPlainText -Force
                     New-LocalUser -Name $targetUser -Password $secPwd -Description "Twin Service Account for $srcUser" -PasswordNeverExpires -ErrorAction SilentlyContinue | Out-Null
                     Write-Host "  [+] Created local user: $targetUser" -ForegroundColor Green
+                }
+            }
+        }
+    }
+
+    # Recreate custom local groups and replay their membership from the source
+    $localAccounts = Load-Manifest "local-accounts.json"
+    if ($localAccounts -and $localAccounts.Groups -and (Get-Command -Name New-LocalGroup -ErrorAction SilentlyContinue)) {
+        foreach ($g in @($localAccounts.Groups)) {
+            if (-not $g.Name) { continue }
+            if (-not (Get-LocalGroup -Name $g.Name -ErrorAction SilentlyContinue)) {
+                if ($g.Description) {
+                    New-LocalGroup -Name $g.Name -Description $g.Description -ErrorAction SilentlyContinue | Out-Null
+                } else {
+                    New-LocalGroup -Name $g.Name -ErrorAction SilentlyContinue | Out-Null
+                }
+                Write-Host "  [+] Created local group: $($g.Name)" -ForegroundColor Green
+            }
+
+            foreach ($m in @($g.Members)) {
+                if (-not $m.Name) { continue }
+                $memberName = Resolve-TargetAccountName $m.Name
+                try {
+                    Add-LocalGroupMember -Group $g.Name -Member $memberName -ErrorAction Stop
+                    Write-Host "  [+] Added $memberName to group $($g.Name)" -ForegroundColor Green
+                }
+                catch {
+                    if ($_.FullyQualifiedErrorId -like "MemberExists*") { continue }
+                    Write-Warning "Could not add '$memberName' to group '$($g.Name)': $($_.Exception.Message) (create the account first or fix AccountMappings)"
                 }
             }
         }
@@ -233,6 +285,42 @@ if ($Step -in @("All", "Acls") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "
                         Set-Acl -LiteralPath $targetPath -AclObject $targetAcl
                         Write-Host "  [+] Set SDDL ACL on $targetPath" -ForegroundColor Green
                     }
+
+                    # The SDDL carries raw source SIDs; ACEs for source-machine-local
+                    # accounts are orphaned on the target (new machine = new SIDs).
+                    # Re-grant those by name against the mapped target accounts.
+                    if ($sysMeta -and $sysMeta.ComputerName -and $entry.AccessRules) {
+                        $srcPrefix = "$($sysMeta.ComputerName)\"
+                        $aclNow = Get-Acl -LiteralPath $targetPath
+                        $remapped = 0
+                        foreach ($rule in @($entry.AccessRules)) {
+                            if ($rule.IsInherited) { continue }
+                            if ($rule.IdentityReference -notlike "$srcPrefix*") { continue }
+                            $targetAccount = Resolve-TargetAccountName $rule.IdentityReference
+                            try {
+                                # Verify the account resolves before adding, so one missing
+                                # account cannot fail the whole Set-Acl
+                                $nt = New-Object System.Security.Principal.NTAccount($targetAccount)
+                                $null = $nt.Translate([System.Security.Principal.SecurityIdentifier])
+
+                                $fsRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                                    $targetAccount,
+                                    [System.Security.AccessControl.FileSystemRights]$rule.FileSystemRights,
+                                    [System.Security.AccessControl.InheritanceFlags]$rule.InheritanceFlags,
+                                    [System.Security.AccessControl.PropagationFlags]$rule.PropagationFlags,
+                                    [System.Security.AccessControl.AccessControlType]$rule.AccessControlType)
+                                $aclNow.AddAccessRule($fsRule)
+                                $remapped++
+                            }
+                            catch {
+                                Write-Warning "Could not re-grant '$($rule.IdentityReference)' as '$targetAccount' on ${targetPath}: $($_.Exception.Message) (run the Accounts stage first or fix AccountMappings)"
+                            }
+                        }
+                        if ($remapped -gt 0) {
+                            Set-Acl -LiteralPath $targetPath -AclObject $aclNow
+                            Write-Host "  [+] Re-granted $remapped local-account ACE(s) by name on $targetPath" -ForegroundColor Green
+                        }
+                    }
                 }
                 catch {
                     Write-Warning "Could not apply SDDL to ${targetPath}: $_"
@@ -263,29 +351,33 @@ if ($Step -in @("All", "Shares") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME,
             if (-not $existingShare) {
                 Write-Host "  Creating SMB Share: $($sh.Name) ($targetPath)..." -ForegroundColor Gray
                 $caching = if ($sh.CachingMode) { $sh.CachingMode } else { "Manual" }
-                New-SmbShare -Name $sh.Name -Path $targetPath -Description $sh.Description -CachingMode $caching -FullAccess "Administrators" -ErrorAction SilentlyContinue | Out-Null
+                $desc = if ($sh.Description) { $sh.Description } else { "" }
+                New-SmbShare -Name $sh.Name -Path $targetPath -Description $desc -CachingMode $caching -FullAccess "Administrators" -ErrorAction SilentlyContinue | Out-Null
                 Write-Host "  [+] Created Share: $($sh.Name)" -ForegroundColor Green
-
-                # Grant permissions
-                foreach ($acc in $sh.AccessPermissions) {
-                    try {
-                        if ($acc.AccessRight -eq "Full") {
-                            Grant-SmbShareAccess -Name $sh.Name -AccountName $acc.AccountName -AccessRight Full -Force -ErrorAction SilentlyContinue | Out-Null
-                        }
-                        elseif ($acc.AccessRight -eq "Change") {
-                            Grant-SmbShareAccess -Name $sh.Name -AccountName $acc.AccountName -AccessRight Change -Force -ErrorAction SilentlyContinue | Out-Null
-                        }
-                        elseif ($acc.AccessRight -eq "Read") {
-                            Grant-SmbShareAccess -Name $sh.Name -AccountName $acc.AccountName -AccessRight Read -Force -ErrorAction SilentlyContinue | Out-Null
-                        }
-                    }
-                    catch {
-                        Write-Warning "Could not grant $($acc.AccessRight) to $($acc.AccountName) on $($sh.Name): $_"
-                    }
-                }
             }
             else {
                 Write-Host "  [=] Share already exists: $($sh.Name)" -ForegroundColor Gray
+            }
+
+            # (Re)apply share-level permissions on every run, translating source-
+            # machine-local account names to their target equivalents. Deny entries
+            # replay via Block-SmbShareAccess.
+            foreach ($acc in @($sh.AccessPermissions)) {
+                if (-not $acc.AccountName) { continue }
+                $acct = Resolve-TargetAccountName $acc.AccountName
+                try {
+                    if ($acc.AccessControlType -eq "Deny") {
+                        Block-SmbShareAccess -Name $sh.Name -AccountName $acct -Force -ErrorAction Stop | Out-Null
+                        Write-Host "  [+] Denied $acct on share $($sh.Name)" -ForegroundColor Green
+                    }
+                    elseif ($acc.AccessRight -in @("Full", "Change", "Read")) {
+                        Grant-SmbShareAccess -Name $sh.Name -AccountName $acct -AccessRight $acc.AccessRight -Force -ErrorAction Stop | Out-Null
+                        Write-Host "  [+] Granted $($acc.AccessRight) to $acct on share $($sh.Name)" -ForegroundColor Green
+                    }
+                }
+                catch {
+                    Write-Warning "Could not apply $($acc.AccessRight) for '$acct' on share '$($sh.Name)': $($_.Exception.Message)"
+                }
             }
         }
     }
@@ -340,12 +432,40 @@ if ($Step -in @("All", "Iis") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "R
                     }
                 }
 
+                # Process model timeouts & profile
+                if ($p.ProcessModel) {
+                    if ($p.ProcessModel.IdleTimeout) {
+                        try { $pool.ProcessModel.IdleTimeout = [System.TimeSpan]::Parse($p.ProcessModel.IdleTimeout) } catch {}
+                    }
+                    if ($null -ne $p.ProcessModel.LoadUserProfile) {
+                        $pool.ProcessModel.LoadUserProfile = $p.ProcessModel.LoadUserProfile
+                    }
+                }
+                if ($p.StartMode) {
+                    try { $pool.StartMode = [Microsoft.Web.Administration.StartMode]$p.StartMode } catch {}
+                }
+
                 # Recycling
                 if ($p.Recycling -and $p.Recycling.PeriodicRestartTime) {
                     $pool.Recycling.PeriodicRestart.Time = [System.TimeSpan]::Parse($p.Recycling.PeriodicRestartTime)
                 }
+                if ($p.Recycling -and $p.Recycling.PeriodicRestartRequests) {
+                    $pool.Recycling.PeriodicRestart.Requests = [long]$p.Recycling.PeriodicRestartRequests
+                }
+                if ($p.Recycling -and $p.Recycling.MemoryLimit) {
+                    $pool.Recycling.PeriodicRestart.Memory = [long]$p.Recycling.MemoryLimit
+                }
                 if ($p.Recycling -and $p.Recycling.PrivateMemoryLimit) {
                     $pool.Recycling.PeriodicRestart.PrivateMemory = [long]$p.Recycling.PrivateMemoryLimit
+                }
+                if ($p.Recycling -and $p.Recycling.Schedule -and @($p.Recycling.Schedule).Count -gt 0) {
+                    try {
+                        $pool.Recycling.PeriodicRestart.Schedule.Clear()
+                        foreach ($t in @($p.Recycling.Schedule)) {
+                            $null = $pool.Recycling.PeriodicRestart.Schedule.Add([System.TimeSpan]::Parse($t))
+                        }
+                    }
+                    catch { Write-Warning "Could not replay recycle schedule for pool $($p.Name): $_" }
                 }
 
                 Write-Host "  [+] Configured AppPool: $($p.Name)" -ForegroundColor Green
@@ -382,6 +502,15 @@ if ($Step -in @("All", "Iis") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "R
                 }
 
                 $site.ServerAutoStart = $s.ServerAutoStart
+
+                # Replay site log settings (path-remapped)
+                if ($s.LogFile -and $s.LogFile.Directory) {
+                    try {
+                        $site.LogFile.Directory = Resolve-TargetPath $s.LogFile.Directory
+                        if ($null -ne $s.LogFile.Enabled) { $site.LogFile.Enabled = $s.LogFile.Enabled }
+                    }
+                    catch { Write-Warning "Could not replay log settings for site $($s.Name): $_" }
+                }
 
                 # Clear and re-apply bindings
                 $site.Bindings.Clear()
@@ -479,8 +608,15 @@ if ($Step -in @("All", "Smtp") -and $PSCmdlet.ShouldProcess($env:COMPUTERNAME, "
                 }
 
                 if ($dropDir) { $adsi.Properties["DropDir"].Value = $dropDir }
-                if ($smtpConfig.Properties.PickupDir) { $adsi.Properties["PickupDir"].Value = $smtpConfig.Properties.PickupDir }
-                if ($smtpConfig.Properties.BadMailDir) { $adsi.Properties["BadMailDir"].Value = $smtpConfig.Properties.BadMailDir }
+                foreach ($dirProp in @("PickupDir", "BadMailDir", "QueueDir")) {
+                    $dirVal = $smtpConfig.Properties.$dirProp
+                    if ($dirVal) {
+                        if (-not (Test-Path -LiteralPath $dirVal)) {
+                            $null = New-Item -ItemType Directory -Path $dirVal -Force
+                        }
+                        $adsi.Properties[$dirProp].Value = $dirVal
+                    }
+                }
                 if ($smtpOverrides -and $smtpOverrides.SmartHost) {
                     $adsi.Properties["SmartHost"].Value = $smtpOverrides.SmartHost
                 } elseif ($smtpConfig.Properties.SmartHost) {

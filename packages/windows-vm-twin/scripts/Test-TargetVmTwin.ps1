@@ -139,10 +139,29 @@ if ($apppools -and $sm) {
             if ($targetPool) {
                 $state = $targetPool.State.ToString()
                 $clr = $targetPool.ManagedRuntimeVersion
-                if ($state -eq "Started" -or $state -eq "Starting") {
-                    Record-TestResult "IIS AppPool" $p.Name "PASS" "Pool exists and is running (CLR: $clr, Mode: $($targetPool.ManagedPipelineMode))."
+
+                # Compare the config that most often breaks apps when it drifts
+                $drift = @()
+                if ($p.ManagedRuntimeVersion -and $clr -ne $p.ManagedRuntimeVersion) {
+                    $drift += "CLR '$clr' vs source '$($p.ManagedRuntimeVersion)'"
+                }
+                if ($p.ManagedPipelineMode -and $targetPool.ManagedPipelineMode.ToString() -ne $p.ManagedPipelineMode) {
+                    $drift += "pipeline '$($targetPool.ManagedPipelineMode)' vs source '$($p.ManagedPipelineMode)'"
+                }
+                if ($p.ProcessModel -and $p.ProcessModel.IdentityType -and $targetPool.ProcessModel.IdentityType.ToString() -ne $p.ProcessModel.IdentityType) {
+                    $drift += "identity '$($targetPool.ProcessModel.IdentityType)' vs source '$($p.ProcessModel.IdentityType)'"
+                }
+                if ($null -ne $p.Enable32BitAppOnWin64 -and $targetPool.Enable32BitAppOnWin64 -ne $p.Enable32BitAppOnWin64) {
+                    $drift += "32-bit '$($targetPool.Enable32BitAppOnWin64)' vs source '$($p.Enable32BitAppOnWin64)'"
+                }
+
+                if ($drift.Count -gt 0) {
+                    Record-TestResult "IIS AppPool" $p.Name "WARN" "Pool exists (State: $state) but config drifted: $($drift -join '; ')."
+                }
+                elseif ($state -eq "Started" -or $state -eq "Starting") {
+                    Record-TestResult "IIS AppPool" $p.Name "PASS" "Pool running and matches source config (CLR: $clr, Mode: $($targetPool.ManagedPipelineMode))."
                 } else {
-                    Record-TestResult "IIS AppPool" $p.Name "WARN" "Pool exists but state is $state."
+                    Record-TestResult "IIS AppPool" $p.Name "WARN" "Pool matches source config but state is $state."
                 }
             } else {
                 Record-TestResult "IIS AppPool" $p.Name "FAIL" "Application pool is missing from target IIS."
@@ -168,6 +187,15 @@ if ($sites -and $sm) {
         if ($targetSite) {
             $state = $targetSite.State.ToString()
             Record-TestResult "IIS Site" $s.Name "PASS" "Site exists (State: $state, Bindings: $($targetSite.Bindings.Count))."
+
+            # Binding parity: every source binding should exist on the target
+            $targetBindingSet = @($targetSite.Bindings | ForEach-Object { "$($_.Protocol)|$($_.BindingInformation)" })
+            foreach ($sb in @($s.Bindings)) {
+                $bindingKey = "$($sb.Protocol)|$($sb.BindingInformation)"
+                if ($targetBindingSet -notcontains $bindingKey) {
+                    Record-TestResult "Site Binding" "$($s.Name) [$bindingKey]" "WARN" "Source binding is not present on the target site."
+                }
+            }
 
             # Probe bindings
             foreach ($b in $targetSite.Bindings) {
@@ -280,12 +308,31 @@ if ($smtpConfig -and $smtpConfig.Installed) {
         $port = $adsi.Properties["Port"].Value
         Record-TestResult "SMTP Server" "ADSI Container" "PASS" "IIS 6.0 SMTP container is active (Port: $port, SmartHost: $($adsi.Properties['SmartHost'].Value))."
 
-        # Check port 25 listener
-        $portTest = Test-NetConnection -ComputerName "127.0.0.1" -Port 25 -WarningAction SilentlyContinue
+        # Expected values honor twin-parameters overrides, then the source capture
+        $smtpOverrides = if ($parameters) { $parameters.SmtpOverrides } else { $null }
+        $expectedPort = 25
+        if ($smtpOverrides -and $smtpOverrides.Port) { $expectedPort = [int]$smtpOverrides.Port }
+        elseif ($smtpConfig.Properties -and $smtpConfig.Properties.Port) { $expectedPort = [int]$smtpConfig.Properties.Port }
+
+        $expectedSmartHost = $null
+        if ($smtpOverrides -and $smtpOverrides.SmartHost) { $expectedSmartHost = "$($smtpOverrides.SmartHost)" }
+        elseif ($smtpConfig.Properties -and $smtpConfig.Properties.SmartHost) { $expectedSmartHost = "$($smtpConfig.Properties.SmartHost)" }
+
+        if ($expectedSmartHost) {
+            $actualSmartHost = "$($adsi.Properties['SmartHost'].Value)"
+            if ($actualSmartHost -eq $expectedSmartHost) {
+                Record-TestResult "SMTP Server" "SmartHost" "PASS" "SmartHost matches expected value ('$actualSmartHost')."
+            } else {
+                Record-TestResult "SMTP Server" "SmartHost" "WARN" "SmartHost is '$actualSmartHost'; expected '$expectedSmartHost'."
+            }
+        }
+
+        # Check the expected SMTP port listener
+        $portTest = Test-NetConnection -ComputerName "127.0.0.1" -Port $expectedPort -WarningAction SilentlyContinue
         if ($portTest.TcpTestSucceeded) {
-            Record-TestResult "SMTP Server" "Port 25 Listener" "PASS" "Port 25 is actively listening on target."
+            Record-TestResult "SMTP Server" "Port $expectedPort Listener" "PASS" "Port $expectedPort is actively listening on target."
         } else {
-            Record-TestResult "SMTP Server" "Port 25 Listener" "WARN" "Port 25 TCP connection test failed."
+            Record-TestResult "SMTP Server" "Port $expectedPort Listener" "WARN" "Port $expectedPort TCP connection test failed."
         }
     } else {
         Record-TestResult "SMTP Server" "ADSI Container" "FAIL" "IIS 6.0 SMTP ADSI container not found."
@@ -300,10 +347,13 @@ $smtpService = Load-Manifest "smtp-service.json"
 if ($smtpService -and $smtpService.ServiceFound) {
     $svc = Get-Service -Name SMTPSVC -ErrorAction SilentlyContinue
     if ($svc) {
-        if ($svc.Status -eq "Running" -and $svc.StartType -eq "Automatic") {
-            Record-TestResult "SMTPSVC Service" "Service Status" "PASS" "Service is Running with Automatic startup."
+        # Compare against what the SOURCE actually had, not a hardcoded expectation
+        $expectedStart = if ($smtpService.StartType) { "$($smtpService.StartType)" } else { "Automatic" }
+        $expectRunning = $expectedStart -ne "Disabled"
+        if ("$($svc.StartType)" -eq $expectedStart -and ((-not $expectRunning) -or $svc.Status -eq "Running")) {
+            Record-TestResult "SMTPSVC Service" "Service Status" "PASS" "StartType matches source ($expectedStart); status is $($svc.Status)."
         } else {
-            Record-TestResult "SMTPSVC Service" "Service Status" "WARN" "Service Status is $($svc.Status) (StartType: $($svc.StartType))."
+            Record-TestResult "SMTPSVC Service" "Service Status" "WARN" "Status $($svc.Status), StartType $($svc.StartType); source was $expectedStart."
         }
 
         # Check failure actions

@@ -150,7 +150,7 @@ foreach ($sourcePath in $targetPaths) {
         }
 
         $fileInfo = Get-Item -LiteralPath $zipFilePath
-        $sha256 = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash
+        $sha256 = (Get-FileHash -LiteralPath $zipFilePath -Algorithm SHA256).Hash
 
         $contentManifest.Archives += [ordered]@{
             OriginalPath      = $sourcePath

@@ -68,7 +68,7 @@ function Write-ManifestJson {
         # (piping unrolls them: @() | ConvertTo-Json emits nothing at all).
         $json = ConvertTo-Json -InputObject $Data -Depth 15
         [System.IO.File]::WriteAllText($filePath, $json, [System.Text.Encoding]::UTF8)
-        $sha256 = (Get-FileHash -Path $filePath -Algorithm SHA256).Hash
+        $sha256 = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash
         $manifestSummary.Components[$FileName] = [ordered]@{
             Status      = "Success"
             Description = $Description
@@ -305,7 +305,7 @@ if ($iisInstalled -and $IncludeRawApplicationHostConfig) {
         $inStream.CopyTo($outStream)
         $inStream.Close()
         $outStream.Close()
-        $sha = (Get-FileHash -Path $destAppHost -Algorithm SHA256).Hash
+        $sha = (Get-FileHash -LiteralPath $destAppHost -Algorithm SHA256).Hash
         $manifestSummary.Components["applicationHost.config.bak"] = [ordered]@{
             Status      = "Success"
             Description = "Read-only snapshot of raw applicationHost.config"
@@ -627,7 +627,19 @@ if (Get-Command -Name Get-LocalUser -ErrorAction SilentlyContinue) {
         Select-Object Name, Enabled, Description, PasswordRequired, UserMayChangePassword)
     $localAccounts.Groups = @(Get-LocalGroup |
         Where-Object { $_.SID.Value -notlike 'S-1-5-32-*' } |
-        Select-Object Name, Description)
+        ForEach-Object {
+            $members = @()
+            try {
+                # Read-only; can throw on groups containing orphaned SIDs (PS 5.1 quirk)
+                $members = @(Get-LocalGroupMember -Group $_.Name -ErrorAction Stop | ForEach-Object {
+                    [ordered]@{ Name = $_.Name; ObjectClass = "$($_.ObjectClass)" }
+                })
+            }
+            catch {
+                Write-Warning "Could not enumerate members of local group '$($_.Name)': $_"
+            }
+            [ordered]@{ Name = $_.Name; Description = $_.Description; Members = $members }
+        })
 }
 Write-ManifestJson -FileName "local-accounts.json" -Data $localAccounts -Description "Non-domain local users and groups"
 

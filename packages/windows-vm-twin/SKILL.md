@@ -101,7 +101,7 @@ Run the discovery script in an elevated PowerShell session on the Source VM:
 | `smtp-config.json` | IIS 6.0 SMTP Server (`SmtpSvc/1`): Port bindings, IP addresses, Relay IP restrictions (`RelayIpList`), Smart Host (`SmartHost`), Drop Directory (`DropDir`), Pickup/BadMail dirs, authentication, connection limits. |
 | `smtp-service.json` | `SMTPSVC` Windows Service: Startup type (`Automatic`, `Manual`, `Delayed-Auto`) and Failure/Recovery Actions (Restart service delay, reset failure count interval, action sequence). |
 | `ssl-certificates.json` | SSL Certificate metadata in `LocalMachine\My` and `WebHosting` stores (Subject, Thumbprint, Issuer, Expiration, FriendlyName). |
-| `local-accounts.json` | Non-built-in local users and groups referenced by AppPools or NTFS/SMB permissions. |
+| `local-accounts.json` | Non-built-in local users and custom local groups, including group membership, so accounts referenced by AppPools or NTFS/SMB permissions can be recreated. |
 | `firewall-rules.json` | Active Windows Firewall rules for HTTP (80), HTTPS (443), SMTP (25/587), and SMB (445). |
 | `system-metadata.json` | Computer name, domain/workgroup, OS build, timezone, network adapters, environment variables. |
 | `Source-VM-Inventory-Report.md` | Human-readable audit report summarizing the complete server inventory. |
@@ -153,10 +153,10 @@ Transfer the blueprint and content archives to the blank target VM and run the r
 
 #### Execution Stages:
 1. **Features**: Installs all required Server Roles (Web-Server, ASP.NET, SMTP-Server, IIS Management tools) and checks if a reboot is needed.
-2. **Accounts**: Creates required local service users/groups or verifies target domain account accessibility.
+2. **Accounts**: Creates required local service users (passwords supplied via `twin-parameters.json`), recreates custom local groups, and replays group membership.
 3. **Content**: Restores file trees for websites and shared folders to target physical locations.
-4. **ACLs**: Replays exact NTFS security descriptors (SDDL) and permissions across all restored folders.
-5. **Shares**: Provisions SMB shares with matching share names, descriptions, and share-level permissions.
+4. **ACLs**: Replays exact NTFS security descriptors (SDDL), then re-grants ACEs for source-machine-local accounts by name — their source SIDs cannot resolve on a new machine.
+5. **Shares**: Provisions SMB shares with matching names, descriptions, and share-level permissions (including deny entries), re-applied on every run.
 6. **IIS**: Rebuilds Application Pools (identities, recycling, 32-bit), Sites, Virtual Directories, and Bindings (including SNI SSL flags and certificate re-binding).
 7. **SMTP**: Configures IIS 6.0 SMTP Server via ADSI (Relay IP list, Smart Host, Drop directory, connection limits).
 8. **Service**: Sets `SMTPSVC` startup type and failure recovery actions (`sc.exe failure` to restart automatically on crash).
@@ -193,6 +193,8 @@ The legacy IIS 6.0 SMTP stack is managed through the ADSI metabase (`IIS://local
 
 ### 2. High-Fidelity NTFS Permissions (SDDL)
 NTFS permissions are extracted and applied using **Security Descriptor Definition Language (SDDL)** strings alongside structured JSON rules. This eliminates locale-dependent translation issues (e.g. `NT AUTHORITY\SYSTEM` vs localized names) and ensures exact inheritance flags and ACE flags are preserved.
+
+Because machine-local accounts get **new SIDs** on the target, SDDL alone would leave their ACEs orphaned. The replay engine therefore follows the SDDL pass with a by-name re-grant: every non-inherited ACE whose identity was `SOURCEHOST\account` is re-added for the mapped target account (via `AccountMappings`), after verifying the account resolves. Run the **Accounts** stage before **ACLs** so those accounts exist.
 
 ### 3. Application Pool Identities & Credentials
 - Built-in identities (`ApplicationPoolIdentity`, `NetworkService`, `LocalSystem`, `LocalService`) are re-created automatically.

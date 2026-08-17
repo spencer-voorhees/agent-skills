@@ -103,6 +103,19 @@ if ($shares) {
     }
 }
 
+# Seed captured custom local users so target passwords can be supplied for
+# re-creation (source password hashes are never captured and cannot migrate)
+if ($localAccounts -and $localAccounts.Users) {
+    foreach ($u in @($localAccounts.Users)) {
+        if ($u.Name -and -not $accountMappings.Contains($u.Name)) {
+            $accountMappings[$u.Name] = [ordered]@{
+                TargetUserName = $u.Name
+                TargetPassword = "REPLACE_WITH_TARGET_PASSWORD_OR_LEAVE_EMPTY"
+            }
+        }
+    }
+}
+
 # SSL / IP Binding overrides
 if ($sites) {
     foreach ($s in $sites) {
