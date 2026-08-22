@@ -1,3 +1,0 @@
-# Ephemeral agent session handoffs
-docs/handoff.md
-docs/handoffs/

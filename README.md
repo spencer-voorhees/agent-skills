@@ -20,7 +20,8 @@ packages/engineering-workflow/
 │   ├── review-code/
 │   ├── capture-decisions/
 │   └── debug-systematically/
-└── templates/
+└── scaffolds/
+    └── agents-md-snippet.md
 ```
 
 | Skill | Purpose |
@@ -62,8 +63,8 @@ path/to/agent-skills/install.sh codex . engineering-workflow
 # Install one skill
 path/to/agent-skills/install.sh codex . review-code
 
-# Install all skills and optionally initialize the docs-as-code templates
-path/to/agent-skills/install.sh codex . all --init-docs
+# Install all skills
+path/to/agent-skills/install.sh codex . all
 ```
 
 | Flavor | Destination |
@@ -76,8 +77,9 @@ path/to/agent-skills/install.sh codex . all --init-docs
 | `copilot` | `.github/skills/` |
 | `agentsmd` | Appends the packaged trigger table to `AGENTS.md` |
 
-The installer copies each skill's `SKILL.md` and any `agents/`, `assets/`,
-`references/`, `scripts/`, or `templates/` resources.
+The installer copies each skill's `SKILL.md` and any skill-local `agents/`, `assets/`,
+`references/`, `scripts/`, or `templates/` resources. The package-level `scaffolds/`
+directory contains only the optional AGENTS routing snippet.
 
 ## Claude Code marketplace
 
@@ -86,17 +88,6 @@ The installer copies each skill's `SKILL.md` and any `agents/`, `assets/`,
 /plugin install engineering-workflow@agent-skills
 ```
 
-## Optional docs-as-code layout
-
-`--init-docs` can initialize this convention when the user explicitly wants it:
-
-```text
-docs/
-├── specs/
-├── architecture/
-├── adr/
-└── learnings.md
-```
-
-Existing repositories keep their established requirements, architecture, and decision
-locations; the skills should discover and preserve those conventions.
+The skills discover and preserve each repository's established requirements,
+architecture, decision, and handoff conventions rather than scaffolding a universal
+documentation layout.

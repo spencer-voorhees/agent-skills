@@ -2,7 +2,7 @@
 # Install agent skills into a project by package or individual skill.
 #
 # Usage:
-#   ./install.sh [flavor] [target-dir] [package-or-skill] [--init-docs] [--force]
+#   ./install.sh [flavor] [target-dir] [package-or-skill] [--force]
 #
 # Flavors (default: agents):
 #   agents      .agents/skills/      Vendor-neutral (Cursor, Gemini CLI, Antigravity, etc.)
@@ -19,7 +19,6 @@
 #   <skill-name>           Installs an individual skill (e.g. write-spec, review-code)
 #
 # Options:
-#   --init-docs       Scaffolds standard docs/ (specs, architecture, adr), .gitattributes, and .gitignore
 #   --force           Replaces an already-installed skill directory
 #
 set -euo pipefail
@@ -29,15 +28,11 @@ WORKFLOW_DIR="$SRC/packages/engineering-workflow"
 FLAVOR="agents"
 TARGET="."
 PACKAGE="all"
-INIT_DOCS=false
 FORCE=false
 
 POSITIONAL_ARGS=()
 for arg in "$@"; do
   case "$arg" in
-    --init-docs)
-      INIT_DOCS=true
-      ;;
     --force)
       FORCE=true
       ;;
@@ -77,7 +72,7 @@ case "$FLAVOR" in
     if [ -f "$TARGET/AGENTS.md" ] && grep -Fq "## Development workflow skills" "$TARGET/AGENTS.md"; then
       echo "✔ Workflow snippet already present in $TARGET/AGENTS.md"
     else
-      cat "$WORKFLOW_DIR/templates/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
+      cat "$WORKFLOW_DIR/scaffolds/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
       echo "✔ Appended workflow snippet to $TARGET/AGENTS.md"
     fi
     echo "  (Edit AGENTS.md and replace <SKILLS_PATH> with the path to your vendored skills directory)."
@@ -143,33 +138,4 @@ if [ -n "$DEST" ]; then
   esac
 
   echo "✔ Installed $count skill(s) ($PACKAGE) to $TARGET/$DEST/"
-fi
-
-if [ "$INIT_DOCS" = true ]; then
-  mkdir -p "$TARGET/docs/specs" "$TARGET/docs/architecture" "$TARGET/docs/adr"
-  
-  if [ ! -f "$TARGET/docs/specs/_template.md" ]; then
-    cp "$WORKFLOW_DIR/templates/docs-skeleton/specs/_template.md" "$TARGET/docs/specs/_template.md"
-  fi
-  if [ ! -f "$TARGET/docs/architecture/system-overview.md" ]; then
-    cp "$WORKFLOW_DIR/templates/docs-skeleton/architecture/system-overview.md" "$TARGET/docs/architecture/system-overview.md"
-  fi
-  if [ ! -f "$TARGET/docs/adr/0000-template.md" ]; then
-    cp "$WORKFLOW_DIR/templates/docs-skeleton/adr/0000-template.md" "$TARGET/docs/adr/0000-template.md"
-  fi
-  if [ ! -f "$TARGET/docs/learnings.md" ]; then
-    cp "$WORKFLOW_DIR/templates/docs-skeleton/learnings.md" "$TARGET/docs/learnings.md"
-  fi
-  
-  if [ -f "$WORKFLOW_DIR/templates/gitattributes-snippet.txt" ] && \
-     ! grep -Fqx "docs/learnings.md merge=union" "$TARGET/.gitattributes" 2>/dev/null; then
-    cat "$WORKFLOW_DIR/templates/gitattributes-snippet.txt" >> "$TARGET/.gitattributes"
-    echo "✔ Configured .gitattributes union merge drivers for docs"
-  fi
-  if [ -f "$WORKFLOW_DIR/templates/gitignore-snippet.txt" ] && \
-     ! grep -Fqx "docs/handoff.md" "$TARGET/.gitignore" 2>/dev/null; then
-    cat "$WORKFLOW_DIR/templates/gitignore-snippet.txt" >> "$TARGET/.gitignore"
-    echo "✔ Added docs/handoff.md to .gitignore"
-  fi
-  echo "✔ Scaffolded standard Docs-as-Code structure in $TARGET/docs/"
 fi

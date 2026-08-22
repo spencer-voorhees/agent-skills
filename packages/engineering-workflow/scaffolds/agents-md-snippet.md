@@ -4,7 +4,7 @@ workflow, then set SKILLS_PATH to wherever the skills live relative to the
 project root (e.g. `vendor/agent-skills/skills` if you vendored this repo,
 or an absolute path to a clone).
 
-  cat templates/agents-md-snippet.md >> /path/to/project/AGENTS.md
+  cat scaffolds/agents-md-snippet.md >> /path/to/project/AGENTS.md
 
 Agents that read AGENTS.md (Codex, Cursor, Gemini CLI, Amp, and others)
 will pick these rules up automatically. Agents with native SKILL.md
