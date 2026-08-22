@@ -16,9 +16,9 @@ from the frontmatter descriptions directly (see README).
 
 This project uses a skill-driven development workflow.
 Each skill is a markdown instruction file; when a trigger below matches the
-task at hand, read the skill file completely and follow it. The skills share
-one contract: `docs/` is the durable source of truth (Specs, Architecture,
-ADRs, Design Tokens), kept currently-true and git-safe for multi-dev teams.
+task at hand, read the skill file completely and follow it. Skills should follow
+explicit project instructions and existing repository conventions. This snippet routes
+skills; it does not establish a documentation layout or authorize new Markdown paths.
 
 Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 
@@ -36,7 +36,9 @@ Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 
 Session habits, always in force:
 
-- At session start, check `docs/handoff.md` (if present) and skim recent ADRs in `docs/adr/`.
-- Never guess on architecture or tokens — follow `docs/architecture/` and use defined design tokens.
+- At session start, read relevant repository instructions and any established handoff,
+  requirements, architecture, decision, or design-system artifacts.
+- Never guess on architecture or tokens—follow the project's existing contracts and
+  defined design tokens.
 - Use `review-code` when an independent readiness assessment is requested.
 - Use `capture-decisions` selectively for durable decisions, costly learnings, or an actual handoff.

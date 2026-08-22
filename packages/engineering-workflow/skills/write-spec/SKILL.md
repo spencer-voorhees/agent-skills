@@ -5,62 +5,37 @@ description: Write or update a bounded feature specification, implementation bri
 
 # Write Spec
 
-## Why this exists
+## Outcome
 
-Agent sessions are ephemeral; durable specifications are not. Spec-Driven
-Development anchors software engineering in clear, checkable requirements before
-code is written. Downstream skills depend on it: `design-architecture` designs the
-system, `maintain-design-system` governs reusable UI, `implement-spec` builds the
-change, `review-code` judges the result, and `capture-decisions` records durable choices.
+Produce a clear contract for downstream design, implementation, and review without
+imposing a documentation system on the repository. A durable specification is useful
+when requirements will be reviewed, implemented across sessions, or referenced later;
+a short planning response may be enough for a small or exploratory request.
 
-A vague or missing spec leads to speculative coding, scope creep, and architectural
-drift. Invest the effort here first.
+## Choose the destination
 
-## Docs-as-Code Layout
+If the user requested a file, resolve its destination in this order:
 
-All skills share a Docs-as-Code contract in the repository:
+1. Use the path explicitly requested by the user.
+2. Follow repository instructions such as `AGENTS.md`.
+3. Follow an existing, unambiguous requirements convention discovered in the repo.
+4. If none exists, ask where to save the spec rather than creating a new documentation
+   tree. In a non-interactive run, return the draft in the task output and identify that
+   no repository destination was established.
 
-```
-docs/
-├── specs/                          # Feature Specs & PRDs (owned by spec)
-│   ├── _template.md
-│   └── <feature-slug>.md           # e.g., auth-oauth.md, billing.md
-├── architecture/                   # System Blueprint & Contracts (owned by architect & design-system)
-│   ├── system-overview.md
-│   └── design-system.md
-├── adr/                            # Architectural Decision Records (owned by remember & architect)
-│   ├── 0000-template.md
-│   └── 0001-<decision-title>.md
-├── learnings.md                    # Curated gotchas & runbook (curated by remember)
-└── handoff.md                      # Active session handoff (git-ignored or branch-scoped)
-```
-
-Each feature gets its own dedicated specification in `docs/specs/<feature-slug>.md`.
-Using individual feature files ensures multiple developers and autonomous agents
-can draft and merge features simultaneously with **zero git merge conflicts**.
-
-If the repository already has a requirements location, preserve it. Use the layout below
-as an optional workflow convention, not a reason to reorganize an existing project.
+Do not scaffold documentation directories, modify ignore or merge rules, or establish
+repository policy as a side effect of writing a spec.
 
 ## Process
-
-### 0. Scaffold only when requested
-
-When initializing the workflow is explicitly in scope, create:
-- `docs/specs/`
-- `docs/architecture/`
-- `docs/adr/`
-- `docs/learnings.md`
-- `.gitattributes` (with `docs/learnings.md merge=union` and `docs/specs/*.md merge=union`)
-- Ensure `.gitignore` includes `docs/handoff.md` and `docs/handoffs/` to keep session handoffs local.
 
 ### 1. Inventory what already exists
 
 Before asking the user questions, discover what the repository already knows:
 
-- Read `README.md`, existing specs in `docs/specs/`, architecture docs, and package manifests (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.).
+- Read `AGENTS.md`, `README.md`, existing requirement and architecture artifacts, and
+  package manifests (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.).
 - Skim existing models, schemas, and routes if code already exists.
-- Review existing ADRs in `docs/adr/` to understand past architectural boundaries.
+- Review existing decision records to understand past architectural boundaries.
 
 ### 2. High-leverage scoping interview
 
@@ -72,7 +47,7 @@ Ask the user only what cannot be inferred from the codebase, focusing on high-le
 
 *Autonomous Mode*: If running non-interactively without user input, infer conservatively from the request and codebase, and explicitly flag every inference as an `OPEN QUESTION:` rather than assuming.
 
-### 3. Write the Specification (`docs/specs/<feature-slug>.md`)
+### 3. Write the specification
 
 Write a concise, structured markdown file using this format:
 
@@ -122,4 +97,6 @@ Write a concise, structured markdown file using this format:
 
 ### 5. Updating an Existing Spec
 
-When requirements evolve mid-flight, update the specification directly in place. If an existing requirement is descoped or significantly altered, create an ADR or log a note to document the rationale.
+When requirements evolve mid-flight, update the established specification directly in
+place. If a requirement is descoped or significantly altered, preserve the rationale in
+the repository's existing decision system when that history has durable value.

@@ -11,15 +11,21 @@ The most expensive failures in agent-assisted projects are quiet architectural
 misalignments: an undefined API strategy resulting in inconsistent endpoint conventions,
 vague module boundaries leading to circular dependencies, or speculative over-engineering.
 
-This skill front-loads structural decisions into clear system blueprints in
-`docs/architecture/` and durable Architectural Decision Records in `docs/adr/`
-so every coding session builds against an agreed-upon technical standard.
+This skill front-loads structural decisions into a clear technical design and, when
+warranted, durable decision records so later work builds against an agreed contract.
+
+## Choose the destination
+
+For a requested durable architecture artifact, use an explicit user path first, then
+repository instructions such as `AGENTS.md`, then an existing unambiguous architecture
+or RFC convention. If none exists, ask where to save it instead of introducing a new
+documentation tree. In a non-interactive run, return the design in the task output and
+state that no repository destination was established.
 
 ## Prerequisites
 
-1. **Read Specifications First**: Read all relevant feature specs in `docs/specs/`
-   (e.g., `docs/specs/<feature>.md`), existing architecture docs in `docs/architecture/`,
-   and past decisions in `docs/adr/`.
+1. **Read Existing Contracts First**: Read relevant feature requirements, architecture
+   documents, and past decisions wherever repository instructions and conventions place them.
 2. **Derive, Don't Guess**: Architecture must directly fulfill the requirements and
    acceptance criteria in the specs within stated constraints. If you find yourself
    designing functionality not requested in any spec, stop.
@@ -48,9 +54,10 @@ a new testing stack when the repository already has an adequate one.
   hypothetical future features. Design cleanly for today's requirements, and note
   genuine future scalability considerations under *Risks & Trade-offs*.
 
-## Deliverable 1: `docs/architecture/system-overview.md`
+## Technical design deliverable
 
-Author or update `docs/architecture/system-overview.md` with the following structure:
+Author or update the resolved architecture artifact with the following structure,
+omitting sections that do not apply:
 
 ```markdown
 # System Architecture
@@ -124,12 +131,12 @@ Detailed enough to write migrations or ORM schemas without invention.]
 - [Unresolved risks, third-party limitations, or questions with proposed mitigations]
 ```
 
-## Deliverable 2: Architectural Decision Records (`docs/adr/`)
+## Architectural decision records
 
 For any significant, non-obvious, or contested technical decision (e.g. database choice,
-auth strategy, state management approach), create a dedicated ADR file in `docs/adr/`:
-
-`docs/adr/YYYY-MM-DD-<decision-title>.md` (or `docs/adr/0001-<decision-title>.md`):
+auth strategy, state management approach), create or propose a dedicated decision record
+using the repository's established location and naming scheme. If none exists, resolve
+the destination using the policy above rather than assuming an ADR directory.
 
 ```markdown
 # ADR: [Short Title of Decision]
@@ -137,7 +144,7 @@ auth strategy, state management approach), create a dedicated ADR file in `docs/
 * **Status**: Accepted
 * **Deciders**: [Architect / User]
 * **Date**: [YYYY-MM-DD]
-* **Related Spec**: [docs/specs/<feature>.md]
+* **Related Spec**: [path or issue reference]
 
 ## Context & Problem Statement
 [What problem needed solving? What constraints applied?]
@@ -161,7 +168,6 @@ Chosen option: **[Chosen Option]**, because [concrete justification tied to requ
 
 ## Revising Architecture
 
-When requirements shift or implementation reveals new constraints, update
-`docs/architecture/system-overview.md` in place so it remains currently true.
-Document the architectural pivot by adding a new ADR in `docs/adr/` referencing
-the superseded decision.
+When requirements shift or implementation reveals new constraints, update the existing
+architecture artifact in place so it remains currently true. Record a meaningful pivot
+in the repository's decision system, referencing the superseded decision.

@@ -12,15 +12,18 @@ each session introduces slightly different hex codes, arbitrary padding, and bes
 button styles.
 
 The solution is a single source of truth with two synchronized halves:
-1. **Design System Specification** (`docs/architecture/design-system.md`): Documents the visual principles, token scales, and component inventory.
-2. **Tokens in Code**: Live code assets (CSS custom properties, Tailwind config, design-token JSON) that make using the design system frictionless.
+1. **Design-system documentation**: Visual principles, token scales, component
+   inventory, and ownership rules in the repository's established location.
+2. **Tokens in code**: Live code assets (CSS custom properties, Tailwind config,
+   design-token JSON) that make using the design system frictionless.
 
 Once established, "style this screen" becomes "apply existing tokens" rather than "invent a one-off style."
 
 ## Prerequisites
 
-1. **Read Requirements & Architecture**: Read `docs/specs/` and `docs/architecture/system-overview.md`
-   to understand target audience, platform constraints, and the UI tech stack (React, Vue, Svelte, Tailwind, Vanilla CSS, etc.).
+1. **Read Requirements & Architecture**: Find relevant requirements and architecture
+   through repository instructions and existing conventions to understand the audience,
+   platform constraints, and UI stack.
 2. **Audit Existing UI**: If styles already exist, extract the colors, spacing, and typography
    currently in use, standardize them into clean scales, and migrate outliers toward them.
 
@@ -42,9 +45,17 @@ These resources define a repeatable logical contract, not a mandatory source-tre
 layout. Preserve the repository's existing paths and conventions. Scaffold from a
 template only when initializing a missing artifact is in scope.
 
-## The Two Deliverables
+## Choose the documentation destination
 
-### Deliverable 1: `docs/architecture/design-system.md`
+For requested design-system documentation, use an explicit user path first, then
+repository instructions such as `AGENTS.md`, then an existing unambiguous design-system
+convention. If none exists, ask where to save it rather than creating a documentation
+tree. In a non-interactive run, update the code source of truth and report the proposed
+documentation in the task output when a repository file is not required.
+
+## The two deliverables
+
+### Deliverable 1: Design-system documentation
 
 Author or update the project's existing design-system documentation. If none exists,
 adapt [`assets/design-system-overview.template.md`](assets/design-system-overview.template.md)
@@ -52,7 +63,7 @@ to the project's needs rather than copying irrelevant sections unchanged.
 
 ---
 
-### Deliverable 2: Tokens in Code
+### Deliverable 2: Tokens in code
 
 Write the design tokens into the project in the format native to the stack:
 - **Portable source**: DTCG-compatible `.tokens.json` when interoperability across
@@ -71,6 +82,9 @@ Do not migrate a working token system solely to adopt DTCG.
 1. **Semantic Role Naming (Role-Based Tokens)**:
    Name tokens for their *role* (`--bg-surface`, `--text-muted`, `--action-primary`), never their literal appearance (`--gray-200`, `--blue-500`). Role names make re-theming and dark mode seamless without refactoring component markup.
 2. **Reuse Before Create**:
-   Before creating a new UI component, check the inventory in `docs/architecture/design-system.md`. If a similar component exists, extend it with a new variant or state.
+   Before creating a new UI component, find the repository's component inventory or
+   inspect the shared component implementation. If a similar component exists, extend
+   it with a new variant or state.
 3. **Synchronize Code and Docs**:
-   Never let the markdown specification and live token code drift. When adding a token or component, update both deliverables in the same session.
+   When durable design-system documentation exists, keep it synchronized with live token
+   and component code. Do not create a Markdown specification solely to satisfy this rule.

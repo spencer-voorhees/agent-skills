@@ -41,7 +41,8 @@ In a temporary scratchpad, explicitly write out:
 
 ```markdown
 ## Goal
-[What observable outcome defines success? Re-derive this from docs/specs/, not from a sub-task that might be a wrong turn.]
+[What observable outcome defines success? Re-derive this from the user request and any
+durable requirements, not from a sub-task that might be a wrong turn.]
 
 ## Failed Attempts
 1. [What was tried] → [Exact error message or observed outcome]
@@ -66,11 +67,11 @@ For every assumption, ask: **What empirical evidence proves this is true?**
 
 ### 4. Re-Ground in Project Context
 
-Re-read the project's durable documentation:
-- **`docs/specs/`**: Is the sub-task you are struggling with even required for acceptance criteria?
-- **`docs/architecture/system-overview.md`**: Does the approach violate an architectural constraint or module boundary?
-- **`docs/adr/`**: Was a similar approach already evaluated and rejected?
-- **`docs/learnings.md`**: Is this exact gotcha already documented with a known workaround?
+Use repository instructions and established conventions to find relevant durable context:
+- **Requirements**: Is the sub-task required by the acceptance criteria?
+- **Architecture**: Does the approach violate a constraint or module boundary?
+- **Decisions**: Was a similar approach already evaluated and rejected?
+- **Runbooks or learnings**: Is this gotcha already documented with a workaround?
 
 ### 5. Choose the Smallest Discriminating Step
 
@@ -92,6 +93,8 @@ If two evidence-driven attempts fail after the audit, or if the blocker requires
 ## Post-Recovery Wrap-up
 
 Once the issue is resolved:
-1. Record the gotcha in `docs/learnings.md` (Symptom $\rightarrow$ Root Cause $\rightarrow$ Fix) so no future session wastes time on it.
+1. If the gotcha is costly and the repository has an authorized destination for
+   learnings, record Symptom → Root Cause → Fix there. Otherwise mention it in the
+   task output; do not introduce a new documentation location.
 2. If resolving the blocker required a durable architectural decision, offer to use
    `capture-decisions` to record it.

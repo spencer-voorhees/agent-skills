@@ -12,10 +12,21 @@ Future sessions then repeat the same mistakes: re-litigating settled architectur
 re-discovering subtle framework bugs, or starting from scratch.
 
 This skill provides a selective durable write-back mechanism. Capture only the artifact
-the user requested or the task clearly requires:
-1. **Architectural Decisions**: As immutable, git-safe ADR files in `docs/adr/`.
-2. **Operational Gotchas**: As a curated runbook in `docs/learnings.md`.
-3. **Session Handoff & PR Draft**: Clear next steps for the next session or PR reviewer.
+the user requested or the task clearly requires: architectural decisions, costly
+operational learnings, or concise handoff context.
+
+## Choose the destination
+
+Resolve each requested artifact destination in this order:
+
+1. Use a path or external system explicitly requested by the user.
+2. Follow repository instructions such as `AGENTS.md`.
+3. Follow an existing, unambiguous convention for that artifact type.
+4. If none exists, ask where to save it. In a non-interactive run, return the artifact
+   in the task output and state that it was not persisted.
+
+Do not create an ADR directory, learnings file, handoff file, ignore rule, or other
+documentation policy merely because this skill ran.
 
 ---
 
@@ -24,12 +35,12 @@ the user requested or the task clearly requires:
 Review the relevant work and select the applicable bucket; do not generate all three by
 default:
 
-### 1. Architectural Decisions &rarr; `docs/adr/` (File-per-Decision)
+### 1. Architectural decisions
 
 When a non-trivial choice was made, an alternative was rejected, or an architectural
-pattern was established, generate a new ADR file in `docs/adr/`:
-
-`docs/adr/YYYY-MM-DD-<short-slug>.md` (or numbered `docs/adr/000X-<short-slug>.md`):
+pattern was established, add a record using the repository's established format and
+naming scheme. File-per-decision ADRs are a good default only when the repository has
+adopted that convention.
 
 ```markdown
 # ADR: [Decision Title]
@@ -37,7 +48,7 @@ pattern was established, generate a new ADR file in `docs/adr/`:
 * **Status**: Accepted
 * **Date**: [YYYY-MM-DD]
 * **Deciders**: [Dev / Agent]
-* **Related Spec**: [docs/specs/<feature>.md]
+* **Related Spec**: [path or issue reference]
 
 ## Context & Problem Statement
 [What problem needed solving? What constraints applied?]
@@ -60,7 +71,7 @@ reviewable; they do not guarantee conflict-free merges.
 
 ---
 
-### 2. Operational Learnings &rarr; `docs/learnings.md` (Curated)
+### 2. Operational learnings
 
 Record stack quirks, tooling gotchas, test workarounds, or non-obvious conventions
 discovered during the session:
@@ -76,11 +87,11 @@ Periodically curate this file to delete workarounds for bugs that have been fixe
 
 ---
 
-### 3. Session Handoff & PR Description &rarr; `docs/handoff.md`
+### 3. Session handoff or PR description
 
 When a handoff is requested or work remains intentionally unfinished, generate a
-structured session handoff. This describes the *immediate present* and
-can be used directly as a PR description:
+structured session handoff in the resolved destination. This describes the *immediate
+present* and can also be used directly as a PR description:
 
 ```markdown
 # Handoff — [YYYY-MM-DD]
@@ -109,5 +120,5 @@ changing repository policy when that change is outside the requested work.
 ## Mid-Session Usage
 
 If a major architectural decision is reached or an expensive gotcha is solved mid-session,
-record it immediately rather than waiting for the final prompt. Capturing context in
-real time prevents lost insights if a context window resets.
+record it promptly only when a destination is already authorized. Otherwise preserve it
+in the task output and ask before adding a new repository artifact.

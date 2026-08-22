@@ -13,8 +13,9 @@ Standard linters catch syntax errors, but agent-assisted workflows face unique r
 - Hardcoded hex values bypassing semantic design tokens.
 - Subtle drift from agreed-upon acceptance criteria in feature specs.
 
-This skill audits pending git diffs against the durable Docs-as-Code ground truth
-(`docs/specs/`, `docs/architecture/`, `docs/adr/`) before code is committed or merged.
+This skill audits pending changes against the codebase and any applicable durable
+requirements, architecture, decisions, and design-system contracts found through
+repository instructions or established conventions.
 
 ## Scope
 
@@ -37,16 +38,16 @@ unhandled Promise rejections, race conditions, and error leaks.
 *Rule: Every correctness finding MUST include a concrete input or failure scenario that triggers the issue.*
 
 ### 2. Specification & Acceptance Criteria Alignment
-Map changed files to the active feature spec in `docs/specs/<feature>.md`:
+Find the active requirement source, if one exists, and map changed files to it:
 - Does the code satisfy the checkable acceptance criteria for `R1`, `R2`, ...?
 - Did the change silently drop an edge case required by the spec?
 - Did the change add unrequested features or speculative scope creep? (Unrequested scope is a finding, not a bonus).
 
 ### 3. Architecture & ADR Alignment
-Check changes against `docs/architecture/system-overview.md` and `docs/adr/`:
+Check changes against applicable architecture documents and decision records:
 - **Module Boundaries**: Are modules importing from forbidden layers (e.g. core domain importing UI or transport layers)?
 - **API Strategy**: Do new endpoints follow established URL naming, payload shapes, and error envelope conventions?
-- **ADRs**: Does the implementation contradict any accepted ADR in `docs/adr/`?
+- **Decisions**: Does the implementation contradict an accepted decision?
 
 ### 4. Code Duplication Search
 For every newly created utility function, helper, or UI component, search the codebase
@@ -54,12 +55,13 @@ for existing equivalents (grep by concept and distinctive string patterns, not j
 *Duplication is the signature failure of multi-session agent work. Prevent it before commit.*
 
 ### 5. Design System Compliance
-If the diff touches UI code and `docs/architecture/design-system.md` exists:
+If the diff touches UI code and a design-system contract or shared component library exists:
 - Check for hardcoded hex/RGB colors, arbitrary margins/paddings, or ad-hoc border radii.
 - Check that newly built components exist in the component inventory and implement required states (hover, focus-visible, disabled, loading).
 
 ### 6. Test Verification
-- Verify that tests exist for new functionality per the testing strategy in `docs/architecture/system-overview.md`.
+- Verify that tests exist for new functionality according to any established testing
+  strategy and the behavior's risk.
 - Run the test suite (`npm test`, `pytest`, `cargo test`, etc.). Do not assume code works without test execution.
 
 ---

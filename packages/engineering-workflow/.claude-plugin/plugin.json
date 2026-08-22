@@ -1,7 +1,7 @@
 {
   "name": "engineering-workflow",
   "description": "Nine composable skills for delivering engineering changes from requirements through implementation, review, and durable decisions.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": {
     "name": "Spencer Voorhees"
   }

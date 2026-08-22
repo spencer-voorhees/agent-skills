@@ -90,4 +90,6 @@ directory contains only the optional AGENTS routing snippet.
 
 The skills discover and preserve each repository's established requirements,
 architecture, decision, and handoff conventions rather than scaffolding a universal
-documentation layout.
+documentation layout. Installing the package does not configure artifact destinations.
+When no explicit path, repository instruction, or unambiguous convention exists, a skill
+asks before persisting a requested document or returns the result without adding a file.

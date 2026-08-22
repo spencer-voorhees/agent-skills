@@ -31,6 +31,21 @@ Do not require documentation artifacts that the repository does not use. A clear
 bug fix may need only implementation and verification. A greenfield feature may need
 the complete sequence.
 
+## Route durable artifacts
+
+When a selected stage warrants a persistent artifact, resolve its destination in this
+order:
+
+1. Use a destination explicitly requested by the user.
+2. Follow repository instructions such as `AGENTS.md`.
+3. Follow an existing, unambiguous convention for that artifact type.
+4. If no destination is established, do not invent a documentation tree. Ask where an
+   explicitly requested file should be saved, or keep the result in the conversation
+   when persistence is not required.
+
+Installing the skills does not authorize scaffolding documentation or changing
+repository policy. Create only artifacts that carry durable value for the change.
+
 ## Maintain the contract
 
 - Carry acceptance criteria and explicit non-goals through implementation and review.
@@ -44,5 +59,6 @@ the complete sequence.
 ## Finish
 
 Report the behavior delivered, important decisions, files or areas changed, verification
-evidence, unresolved risks, and any intentionally deferred work. Do not claim a stage
-was completed when its observable output or verification is missing.
+evidence, unresolved risks, and any intentionally deferred work. List durable artifacts
+created or updated and note when a considered artifact was intentionally unnecessary.
+Do not claim a stage was completed when its observable output or verification is missing.
