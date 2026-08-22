@@ -1,7 +1,7 @@
 {
   "name": "agent-skills",
-  "description": "A suite of modular coding agent skill packages: dev-workflow (spec-driven development, architecture blueprints, ADRs, pre-commit review, session memory) and frontend-design (high-craft visual design & UI direction).",
-  "version": "0.3.0",
+  "description": "A composable engineering workflow for delivering changes from specification through review and durable decisions.",
+  "version": "0.5.0",
   "author": {
     "name": "Spencer Voorhees"
   }

@@ -1,0 +1,84 @@
+{
+  "$description": "Starter DTCG token source. Replace sample values and remove unused groups before adoption.",
+  "color": {
+    "palette": {
+      "neutral": {
+        "0": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [1, 1, 1],
+            "hex": "#ffffff"
+          }
+        },
+        "900": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.0588, 0.0902, 0.1647],
+            "hex": "#0f172a"
+          }
+        }
+      },
+      "brand": {
+        "600": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [0.1451, 0.3882, 0.9216],
+            "hex": "#2563eb"
+          }
+        }
+      }
+    },
+    "semantic": {
+      "surface": {
+        "canvas": {
+          "$type": "color",
+          "$value": "{color.palette.neutral.0}",
+          "$description": "Primary application canvas"
+        }
+      },
+      "text": {
+        "primary": {
+          "$type": "color",
+          "$value": "{color.palette.neutral.900}",
+          "$description": "Default high-emphasis text"
+        }
+      },
+      "action": {
+        "primary": {
+          "$type": "color",
+          "$value": "{color.palette.brand.600}",
+          "$description": "Primary interactive action"
+        }
+      }
+    }
+  },
+  "space": {
+    "$type": "dimension",
+    "1": { "$value": { "value": 4, "unit": "px" } },
+    "2": { "$value": { "value": 8, "unit": "px" } },
+    "3": { "$value": { "value": 12, "unit": "px" } },
+    "4": { "$value": { "value": 16, "unit": "px" } },
+    "6": { "$value": { "value": 24, "unit": "px" } }
+  },
+  "radius": {
+    "$type": "dimension",
+    "control": {
+      "$value": { "value": 8, "unit": "px" },
+      "$description": "Default radius for interactive controls"
+    },
+    "surface": {
+      "$value": { "value": 12, "unit": "px" },
+      "$description": "Default radius for raised surfaces"
+    }
+  },
+  "motion": {
+    "duration": {
+      "$type": "duration",
+      "fast": { "$value": { "value": 150, "unit": "ms" } },
+      "normal": { "$value": { "value": 250, "unit": "ms" } }
+    }
+  }
+}

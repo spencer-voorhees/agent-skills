@@ -2,7 +2,7 @@
 # Install agent skills into a project by package or individual skill.
 #
 # Usage:
-#   ./install.sh [flavor] [target-dir] [package-or-skill] [--init-docs]
+#   ./install.sh [flavor] [target-dir] [package-or-skill] [--init-docs] [--force]
 #
 # Flavors (default: agents):
 #   agents      .agents/skills/      Vendor-neutral (Cursor, Gemini CLI, Antigravity, etc.)
@@ -14,22 +14,23 @@
 #   agentsmd    AGENTS.md            Appends trigger-table snippet (for agents without native SKILL.md)
 #
 # Packages / Skills (default: all):
-#   all               Installs dev-workflow, frontend-design, and windows-vm-twin
-#   dev-workflow      Installs the 6 lifecycle skills (spec, architect, design-system, review, remember, recover)
-#   frontend-design   Installs the standalone visual design & UI craft skill
-#   windows-vm-twin   Installs the Windows VM configuration cloning & twin provisioning skill
-#   <skill-name>      Installs any individual skill by name (e.g. spec, review, frontend-design, windows-vm-twin)
+#   all                    Installs the engineering-workflow package
+#   engineering-workflow   Installs all 9 workflow skills
+#   <skill-name>           Installs an individual skill (e.g. write-spec, review-code)
 #
 # Options:
 #   --init-docs       Scaffolds standard docs/ (specs, architecture, adr), .gitattributes, and .gitignore
+#   --force           Replaces an already-installed skill directory
 #
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
+WORKFLOW_DIR="$SRC/packages/engineering-workflow"
 FLAVOR="agents"
 TARGET="."
 PACKAGE="all"
 INIT_DOCS=false
+FORCE=false
 
 POSITIONAL_ARGS=()
 for arg in "$@"; do
@@ -37,8 +38,11 @@ for arg in "$@"; do
     --init-docs)
       INIT_DOCS=true
       ;;
+    --force)
+      FORCE=true
+      ;;
     -h|--help|help)
-      sed -n '2,22p' "$0"; exit 0
+      sed -n '2,24p' "$0"; exit 0
       ;;
     *)
       POSITIONAL_ARGS+=("$arg")
@@ -70,8 +74,12 @@ case "$FLAVOR" in
   cursor)                 DEST=".cursor/skills" ;;
   agentsmd)
     mkdir -p "$TARGET"
-    cat "$SRC/templates/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
-    echo "✔ Appended workflow snippet to $TARGET/AGENTS.md"
+    if [ -f "$TARGET/AGENTS.md" ] && grep -Fq "## Development workflow skills" "$TARGET/AGENTS.md"; then
+      echo "✔ Workflow snippet already present in $TARGET/AGENTS.md"
+    else
+      cat "$WORKFLOW_DIR/templates/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
+      echo "✔ Appended workflow snippet to $TARGET/AGENTS.md"
+    fi
     echo "  (Edit AGENTS.md and replace <SKILLS_PATH> with the path to your vendored skills directory)."
     DEST=""
     ;;
@@ -88,64 +96,45 @@ if [ -n "$DEST" ]; then
   install_skill_dir() {
     local skill_src="$1"
     local skill_name="$2"
-    rm -rf "${TARGET:?}/$DEST/$skill_name"
+    if [ -e "$TARGET/$DEST/$skill_name" ]; then
+      if [ "$FORCE" != true ]; then
+        echo "error: $TARGET/$DEST/$skill_name already exists (use --force to replace it)" >&2
+        exit 1
+      fi
+      rm -rf "${TARGET:?}/$DEST/$skill_name"
+    fi
     mkdir -p "$TARGET/$DEST/$skill_name"
     if [ -f "$skill_src/SKILL.md" ]; then
       cp "$skill_src/SKILL.md" "$TARGET/$DEST/$skill_name/SKILL.md"
     fi
-    if [ -d "$skill_src/scripts" ]; then
-      cp -r "$skill_src/scripts" "$TARGET/$DEST/$skill_name/"
-    fi
-    if [ -d "$skill_src/templates" ]; then
-      cp -r "$skill_src/templates" "$TARGET/$DEST/$skill_name/"
-    fi
+    for resource_dir in agents assets references scripts templates; do
+      if [ -d "$skill_src/$resource_dir" ]; then
+        cp -r "$skill_src/$resource_dir" "$TARGET/$DEST/$skill_name/"
+      fi
+    done
     count=$((count + 1))
   }
 
   case "$PACKAGE" in
     all)
-      # Install dev-workflow skills
-      for skill in "$SRC"/packages/dev-workflow/*/; do
-        if [ -d "$skill" ]; then
-          name="$(basename "$skill")"
-          install_skill_dir "$skill" "$name"
-        fi
-      done
-      # Install frontend-design
-      if [ -d "$SRC/packages/frontend-design" ]; then
-        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
-      fi
-      # Install windows-vm-twin
-      if [ -d "$SRC/packages/windows-vm-twin" ]; then
-        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
-      fi
-      ;;
-    dev-workflow|workflow)
-      for skill in "$SRC"/packages/dev-workflow/*/; do
+      for skill in "$WORKFLOW_DIR"/skills/*/; do
         if [ -d "$skill" ]; then
           name="$(basename "$skill")"
           install_skill_dir "$skill" "$name"
         fi
       done
       ;;
-    frontend-design|frontend)
-      if [ -d "$SRC/packages/frontend-design" ]; then
-        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
-      fi
-      ;;
-    windows-vm-twin|win-twin|windows)
-      if [ -d "$SRC/packages/windows-vm-twin" ]; then
-        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
-      fi
+    engineering-workflow|workflow)
+      for skill in "$WORKFLOW_DIR"/skills/*/; do
+        if [ -d "$skill" ]; then
+          name="$(basename "$skill")"
+          install_skill_dir "$skill" "$name"
+        fi
+      done
       ;;
     *)
-      # Check if individual skill in dev-workflow
-      if [ -d "$SRC/packages/dev-workflow/$PACKAGE" ]; then
-        install_skill_dir "$SRC/packages/dev-workflow/$PACKAGE" "$PACKAGE"
-      elif [ "$PACKAGE" = "frontend-design" ] && [ -d "$SRC/packages/frontend-design" ]; then
-        install_skill_dir "$SRC/packages/frontend-design" "frontend-design"
-      elif [ "$PACKAGE" = "windows-vm-twin" ] && [ -d "$SRC/packages/windows-vm-twin" ]; then
-        install_skill_dir "$SRC/packages/windows-vm-twin" "windows-vm-twin"
+      if [ -d "$WORKFLOW_DIR/skills/$PACKAGE" ]; then
+        install_skill_dir "$WORKFLOW_DIR/skills/$PACKAGE" "$PACKAGE"
       else
         echo "error: unknown package or skill '$PACKAGE'" >&2
         exit 1
@@ -160,24 +149,26 @@ if [ "$INIT_DOCS" = true ]; then
   mkdir -p "$TARGET/docs/specs" "$TARGET/docs/architecture" "$TARGET/docs/adr"
   
   if [ ! -f "$TARGET/docs/specs/_template.md" ]; then
-    cp "$SRC/templates/docs-skeleton/specs/_template.md" "$TARGET/docs/specs/_template.md"
+    cp "$WORKFLOW_DIR/templates/docs-skeleton/specs/_template.md" "$TARGET/docs/specs/_template.md"
   fi
   if [ ! -f "$TARGET/docs/architecture/system-overview.md" ]; then
-    cp "$SRC/templates/docs-skeleton/architecture/system-overview.md" "$TARGET/docs/architecture/system-overview.md"
+    cp "$WORKFLOW_DIR/templates/docs-skeleton/architecture/system-overview.md" "$TARGET/docs/architecture/system-overview.md"
   fi
   if [ ! -f "$TARGET/docs/adr/0000-template.md" ]; then
-    cp "$SRC/templates/docs-skeleton/adr/0000-template.md" "$TARGET/docs/adr/0000-template.md"
+    cp "$WORKFLOW_DIR/templates/docs-skeleton/adr/0000-template.md" "$TARGET/docs/adr/0000-template.md"
   fi
   if [ ! -f "$TARGET/docs/learnings.md" ]; then
-    cp "$SRC/templates/docs-skeleton/learnings.md" "$TARGET/docs/learnings.md"
+    cp "$WORKFLOW_DIR/templates/docs-skeleton/learnings.md" "$TARGET/docs/learnings.md"
   fi
   
-  if [ -f "$SRC/templates/gitattributes-snippet.txt" ]; then
-    cat "$SRC/templates/gitattributes-snippet.txt" >> "$TARGET/.gitattributes"
+  if [ -f "$WORKFLOW_DIR/templates/gitattributes-snippet.txt" ] && \
+     ! grep -Fqx "docs/learnings.md merge=union" "$TARGET/.gitattributes" 2>/dev/null; then
+    cat "$WORKFLOW_DIR/templates/gitattributes-snippet.txt" >> "$TARGET/.gitattributes"
     echo "✔ Configured .gitattributes union merge drivers for docs"
   fi
-  if [ -f "$SRC/templates/gitignore-snippet.txt" ]; then
-    cat "$SRC/templates/gitignore-snippet.txt" >> "$TARGET/.gitignore"
+  if [ -f "$WORKFLOW_DIR/templates/gitignore-snippet.txt" ] && \
+     ! grep -Fqx "docs/handoff.md" "$TARGET/.gitignore" 2>/dev/null; then
+    cat "$WORKFLOW_DIR/templates/gitignore-snippet.txt" >> "$TARGET/.gitignore"
     echo "✔ Added docs/handoff.md to .gitignore"
   fi
   echo "✔ Scaffolded standard Docs-as-Code structure in $TARGET/docs/"
