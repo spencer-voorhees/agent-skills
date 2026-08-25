@@ -39,6 +39,22 @@ packages/engineering-workflow/
 `deliver-change` does not require every stage. A clear local fix may need only
 implementation and verification; a greenfield feature may use the complete sequence.
 
+## Frontend-design resources
+
+`frontend-design` keeps brief inference, design direction, system fit, and critique in
+its main workflow, then routes to focused references for:
+
+- Accessibility and reduced-motion behavior
+- Responsive decisions for wide, dense, and multi-column layouts
+- Loading, empty, error, partial, and async interaction states
+- Screenshot-based visual verification and refinement
+
+Its creative-direction approach is inspired by Anthropic's
+[`frontend-design`](https://github.com/anthropics/claude-code/tree/main/plugins/frontend-design/skills/frontend-design)
+skill. Its audit modes, variance/motion/density calibration, and preflight concepts also
+draw from [`taste-skill`](https://github.com/Leonxlnx/taste-skill), adapted here as
+qualitative and framework-neutral guidance.
+
 ## Design-system resources
 
 `maintain-design-system` includes optional resources for:
