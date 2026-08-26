@@ -15,7 +15,7 @@
 #
 # Packages / Skills (default: all):
 #   all                    Installs the engineering-workflow package
-#   engineering-workflow   Installs all 9 workflow skills
+#   engineering-workflow   Installs all 10 workflow skills
 #   <skill-name>           Installs an individual skill (e.g. write-spec, review-code)
 #
 # Options:

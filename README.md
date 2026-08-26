@@ -19,7 +19,8 @@ packages/engineering-workflow/
 │   ├── implement-spec/
 │   ├── review-code/
 │   ├── capture-decisions/
-│   └── debug-systematically/
+│   ├── debug-systematically/
+│   └── migrate-scandipwa-to-hyva/
 └── scaffolds/
     └── agents-md-snippet.md
 ```
@@ -35,6 +36,7 @@ packages/engineering-workflow/
 | [`review-code`](packages/engineering-workflow/skills/review-code/SKILL.md) | Performs a read-only, evidence-based review of a specified change. |
 | [`capture-decisions`](packages/engineering-workflow/skills/capture-decisions/SKILL.md) | Selectively records ADRs, costly learnings, and handoff context. |
 | [`debug-systematically`](packages/engineering-workflow/skills/debug-systematically/SKILL.md) | Breaks persistent debugging loops through verified assumptions and discriminating experiments. |
+| [`migrate-scandipwa-to-hyva`](packages/engineering-workflow/skills/migrate-scandipwa-to-hyva/SKILL.md) | Independently migrates one component or a complete ScandiPWA-to-Hyvä program and routes target implementation through installed official Hyvä AI skills. |
 
 `deliver-change` does not require every stage. A clear local fix may need only
 implementation and verification; a greenfield feature may use the complete sequence.
@@ -67,6 +69,18 @@ qualitative and framework-neutral guidance.
 
 These resources standardize the logical contract without imposing one universal source
 layout or migrating an existing token system unnecessarily.
+
+## ScandiPWA-to-Hyvä migration resources
+
+`migrate-scandipwa-to-hyva` is independently usable and includes focused guidance for:
+
+- Preserving and extending an existing rebuild/adapt/omit migration map
+- Operating narrowly on one component or broadly across a migration program
+- Tracing customer behavior across ScandiPWA, GraphQL, and Magento modules
+- Selecting target-native Magento, PHTML, Alpine, Tailwind, and compatibility patterns
+- Routing bounded target work to the relevant installed Hyvä AI skills
+- Requiring source-versus-target evidence before migration items are complete
+- Separating target readiness from authorized cutover and source-retirement cleanup
 
 ## Installation
 
