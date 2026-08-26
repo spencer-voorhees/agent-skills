@@ -8,6 +8,11 @@
       "name": "engineering-workflow",
       "source": "./packages/engineering-workflow",
       "description": "Nine composable skills for delivering engineering changes from requirements and architecture through design, implementation, verification, review, decisions, and systematic debugging."
+    },
+    {
+      "name": "scandipwa-hyva-migration",
+      "source": "./packages/scandipwa-hyva-migration",
+      "description": "Migrate and verify individual components or a complete Magento storefront program from ScandiPWA to Hyvä."
     }
   ]
 }

@@ -33,7 +33,6 @@ Set `SKILLS_PATH` = `<SKILLS_PATH>` (adjust to this project's layout).
 | Reviewing a diff, pull request, or completed change for correctness and readiness | `SKILLS_PATH/review-code/SKILL.md` |
 | Recording an ADR, expensive learning, checkpoint, or handoff | `SKILLS_PATH/capture-decisions/SKILL.md` |
 | The same error has survived repeated attempts, progress has stalled, or systematic diagnosis is needed | `SKILLS_PATH/debug-systematically/SKILL.md` |
-| Migrating or verifying one component, capability, slice, or a complete ScandiPWA-to-Hyvä storefront program | `SKILLS_PATH/migrate-scandipwa-to-hyva/SKILL.md` |
 
 Session habits, always in force:
 

@@ -14,9 +14,10 @@
 #   agentsmd    AGENTS.md            Appends trigger-table snippet (for agents without native SKILL.md)
 #
 # Packages / Skills (default: all):
-#   all                    Installs the engineering-workflow package
-#   engineering-workflow   Installs all 10 workflow skills
-#   <skill-name>           Installs an individual skill (e.g. write-spec, review-code)
+#   all                         Installs every package
+#   engineering-workflow        Installs all 9 workflow skills
+#   scandipwa-hyva-migration    Installs the migration skill
+#   <skill-name>                Installs one skill (e.g. write-spec, migrate-scandipwa-to-hyva)
 #
 # Options:
 #   --force           Replaces an already-installed skill directory
@@ -25,6 +26,7 @@ set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 WORKFLOW_DIR="$SRC/packages/engineering-workflow"
+MIGRATION_DIR="$SRC/packages/scandipwa-hyva-migration"
 FLAVOR="agents"
 TARGET="."
 PACKAGE="all"
@@ -37,7 +39,7 @@ for arg in "$@"; do
       FORCE=true
       ;;
     -h|--help|help)
-      sed -n '2,24p' "$0"; exit 0
+      sed -n '2,26p' "$0"; exit 0
       ;;
     *)
       POSITIONAL_ARGS+=("$arg")
@@ -60,6 +62,18 @@ if [ ! -d "$SRC/packages" ]; then
   exit 1
 fi
 
+append_agents_snippet() {
+  local snippet="$1"
+  local heading="$2"
+  local label="$3"
+  if [ -f "$TARGET/AGENTS.md" ] && grep -Fq "$heading" "$TARGET/AGENTS.md"; then
+    echo "✔ $label snippet already present in $TARGET/AGENTS.md"
+  else
+    cat "$snippet" >> "$TARGET/AGENTS.md"
+    echo "✔ Appended $label snippet to $TARGET/AGENTS.md"
+  fi
+}
+
 case "$FLAVOR" in
   agents|antigravity|agy) DEST=".agents/skills" ;;
   claude)                 DEST=".claude/skills" ;;
@@ -69,13 +83,29 @@ case "$FLAVOR" in
   cursor)                 DEST=".cursor/skills" ;;
   agentsmd)
     mkdir -p "$TARGET"
-    if [ -f "$TARGET/AGENTS.md" ] && grep -Fq "## Development workflow skills" "$TARGET/AGENTS.md"; then
-      echo "✔ Workflow snippet already present in $TARGET/AGENTS.md"
-    else
-      cat "$WORKFLOW_DIR/scaffolds/agents-md-snippet.md" >> "$TARGET/AGENTS.md"
-      echo "✔ Appended workflow snippet to $TARGET/AGENTS.md"
-    fi
-    echo "  (Edit AGENTS.md and replace <SKILLS_PATH> with the path to your vendored skills directory)."
+    case "$PACKAGE" in
+      all)
+        append_agents_snippet "$WORKFLOW_DIR/scaffolds/agents-md-snippet.md" "## Development workflow skills" "workflow"
+        append_agents_snippet "$MIGRATION_DIR/scaffolds/agents-md-snippet.md" "## ScandiPWA-to-Hyvä migration skill" "migration"
+        ;;
+      engineering-workflow|workflow)
+        append_agents_snippet "$WORKFLOW_DIR/scaffolds/agents-md-snippet.md" "## Development workflow skills" "workflow"
+        ;;
+      scandipwa-hyva-migration|migration|migrate-scandipwa-to-hyva)
+        append_agents_snippet "$MIGRATION_DIR/scaffolds/agents-md-snippet.md" "## ScandiPWA-to-Hyvä migration skill" "migration"
+        ;;
+      *)
+        if [ -d "$WORKFLOW_DIR/skills/$PACKAGE" ]; then
+          append_agents_snippet "$WORKFLOW_DIR/scaffolds/agents-md-snippet.md" "## Development workflow skills" "workflow"
+        elif [ -d "$MIGRATION_DIR/skills/$PACKAGE" ]; then
+          append_agents_snippet "$MIGRATION_DIR/scaffolds/agents-md-snippet.md" "## ScandiPWA-to-Hyvä migration skill" "migration"
+        else
+          echo "error: unknown package or skill '$PACKAGE'" >&2
+          exit 1
+        fi
+        ;;
+    esac
+    echo "  (Edit AGENTS.md and replace the path placeholder(s) for the selected package)."
     DEST=""
     ;;
   *)
@@ -110,26 +140,41 @@ if [ -n "$DEST" ]; then
     count=$((count + 1))
   }
 
+  install_package_skills() {
+    local package_dir="$1"
+    for skill in "$package_dir"/skills/*/; do
+      if [ -d "$skill" ]; then
+        local name
+        name="$(basename "$skill")"
+        install_skill_dir "$skill" "$name"
+      fi
+    done
+  }
+
   case "$PACKAGE" in
     all)
-      for skill in "$WORKFLOW_DIR"/skills/*/; do
-        if [ -d "$skill" ]; then
-          name="$(basename "$skill")"
-          install_skill_dir "$skill" "$name"
-        fi
-      done
+      install_package_skills "$WORKFLOW_DIR"
+      install_package_skills "$MIGRATION_DIR"
       ;;
     engineering-workflow|workflow)
-      for skill in "$WORKFLOW_DIR"/skills/*/; do
-        if [ -d "$skill" ]; then
-          name="$(basename "$skill")"
-          install_skill_dir "$skill" "$name"
-        fi
-      done
+      install_package_skills "$WORKFLOW_DIR"
+      ;;
+    scandipwa-hyva-migration|migration)
+      install_package_skills "$MIGRATION_DIR"
       ;;
     *)
-      if [ -d "$WORKFLOW_DIR/skills/$PACKAGE" ]; then
-        install_skill_dir "$WORKFLOW_DIR/skills/$PACKAGE" "$PACKAGE"
+      skill_matches=()
+      for package_dir in "$SRC"/packages/*; do
+        candidate="$package_dir/skills/$PACKAGE"
+        if [ -d "$candidate" ]; then
+          skill_matches+=("$candidate")
+        fi
+      done
+      if [ ${#skill_matches[@]} -eq 1 ]; then
+        install_skill_dir "${skill_matches[0]}" "$PACKAGE"
+      elif [ ${#skill_matches[@]} -gt 1 ]; then
+        echo "error: skill '$PACKAGE' exists in multiple packages; install a package explicitly" >&2
+        exit 1
       else
         echo "error: unknown package or skill '$PACKAGE'" >&2
         exit 1

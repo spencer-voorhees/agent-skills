@@ -1,0 +1,8 @@
+{
+  "name": "scandipwa-hyva-migration",
+  "description": "A focused skill for component-level or program-wide ScandiPWA-to-Hyvä storefront migration.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Spencer Voorhees"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "scandipwa-hyva-migration",
+  "version": "0.1.0",
+  "description": "Migrate components, capabilities, or a complete Magento storefront from ScandiPWA to Hyvä.",
+  "author": {
+    "name": "Spencer Voorhees",
+    "url": "https://github.com/spencer-voorhees"
+  },
+  "homepage": "https://github.com/spencer-voorhees/agent-skills/tree/main/packages/scandipwa-hyva-migration",
+  "repository": "https://github.com/spencer-voorhees/agent-skills",
+  "keywords": ["magento", "scandipwa", "hyva", "migration"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ScandiPWA to Hyvä Migration",
+    "shortDescription": "Migrate ScandiPWA storefront behavior to Hyvä.",
+    "longDescription": "Trace, rebuild, adapt, and verify ScandiPWA components or complete storefront programs using native Magento and Hyvä patterns.",
+    "developerName": "Spencer Voorhees",
+    "category": "Developer Tools",
+    "capabilities": ["Write"],
+    "defaultPrompt": [
+      "Migrate a ScandiPWA component to Hyvä.",
+      "Plan a complete ScandiPWA-to-Hyvä migration."
+    ]
+  }
+}

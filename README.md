@@ -1,11 +1,11 @@
 # agent-skills
 
-A package of composable skills for coding agents to deliver engineering changes from
-requirements through implementation, review, and durable documentation.
+A repository of focused skill packages for engineering delivery and Magento storefront
+migration.
 
-## Engineering workflow
+## Packages
 
-The repository currently contains one package:
+The repository contains two independently installable packages:
 
 ```text
 packages/engineering-workflow/
@@ -19,11 +19,20 @@ packages/engineering-workflow/
 │   ├── implement-spec/
 │   ├── review-code/
 │   ├── capture-decisions/
-│   ├── debug-systematically/
+│   └── debug-systematically/
+└── scaffolds/
+    └── agents-md-snippet.md
+
+packages/scandipwa-hyva-migration/
+├── .claude-plugin/
+├── .codex-plugin/
+├── skills/
 │   └── migrate-scandipwa-to-hyva/
 └── scaffolds/
     └── agents-md-snippet.md
 ```
+
+### Engineering workflow
 
 | Skill | Purpose |
 |---|---|
@@ -36,7 +45,6 @@ packages/engineering-workflow/
 | [`review-code`](packages/engineering-workflow/skills/review-code/SKILL.md) | Performs a read-only, evidence-based review of a specified change. |
 | [`capture-decisions`](packages/engineering-workflow/skills/capture-decisions/SKILL.md) | Selectively records ADRs, costly learnings, and handoff context. |
 | [`debug-systematically`](packages/engineering-workflow/skills/debug-systematically/SKILL.md) | Breaks persistent debugging loops through verified assumptions and discriminating experiments. |
-| [`migrate-scandipwa-to-hyva`](packages/engineering-workflow/skills/migrate-scandipwa-to-hyva/SKILL.md) | Independently migrates one component or a complete ScandiPWA-to-Hyvä program and routes target implementation through installed official Hyvä AI skills. |
 
 `deliver-change` does not require every stage. A clear local fix may need only
 implementation and verification; a greenfield feature may use the complete sequence.
@@ -72,7 +80,9 @@ layout or migrating an existing token system unnecessarily.
 
 ## ScandiPWA-to-Hyvä migration resources
 
-`migrate-scandipwa-to-hyva` is independently usable and includes focused guidance for:
+The separate `scandipwa-hyva-migration` package contains
+[`migrate-scandipwa-to-hyva`](packages/scandipwa-hyva-migration/skills/migrate-scandipwa-to-hyva/SKILL.md)
+and focused guidance for:
 
 - Preserving and extending an existing rebuild/adapt/omit migration map
 - Operating narrowly on one component or broadly across a migration program
@@ -90,6 +100,9 @@ Clone the repository, then install the package or one skill into a project:
 # Install all workflow skills for Codex
 path/to/agent-skills/install.sh codex . engineering-workflow
 
+# Install the ScandiPWA-to-Hyvä migration package
+path/to/agent-skills/install.sh codex . scandipwa-hyva-migration
+
 # Install one skill
 path/to/agent-skills/install.sh codex . review-code
 
@@ -105,7 +118,7 @@ path/to/agent-skills/install.sh codex . all
 | `cursor` | `.cursor/skills/` |
 | `gemini` | `.gemini/skills/` |
 | `copilot` | `.github/skills/` |
-| `agentsmd` | Appends the packaged trigger table to `AGENTS.md` |
+| `agentsmd` | Appends the selected package's routing snippet to `AGENTS.md` |
 
 The installer copies each skill's `SKILL.md` and any skill-local `agents/`, `assets/`,
 `references/`, `scripts/`, or `templates/` resources. The package-level `scaffolds/`
@@ -116,10 +129,11 @@ directory contains only the optional AGENTS routing snippet.
 ```bash
 /plugin marketplace add spencer-voorhees/agent-skills
 /plugin install engineering-workflow@agent-skills
+/plugin install scandipwa-hyva-migration@agent-skills
 ```
 
-The skills discover and preserve each repository's established requirements,
+The engineering skills discover and preserve each repository's established requirements,
 architecture, decision, and handoff conventions rather than scaffolding a universal
-documentation layout. Installing the package does not configure artifact destinations.
-When no explicit path, repository instruction, or unambiguous convention exists, a skill
-asks before persisting a requested document or returns the result without adding a file.
+documentation layout. The migration package preserves the project's approved scope map
+and keeps component implementation, program readiness, cutover, and retirement evidence
+separate. Installing either package does not configure artifact destinations.
