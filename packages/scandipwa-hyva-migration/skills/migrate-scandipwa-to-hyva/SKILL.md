@@ -18,7 +18,7 @@ of migration scope, source tracing, sequencing, parity, and completion here.
 Use the narrowest mode that satisfies the request. Do not turn component-level work into
 a storefront-wide migration exercise.
 
-### Component or capability mode
+### Focused mode
 
 Use this mode when the user names one component, capability, page region, or tightly
 bounded customer behavior. Trace only the source files, Magento integrations, states,
@@ -43,7 +43,7 @@ sequence coherent slices, track cross-cutting foundations, and maintain program-
 completion evidence.
 
 If a request names a specific component and does not explicitly ask for broader planning,
-select component or capability mode.
+select focused mode.
 
 ## Establish the migration contract
 
@@ -64,32 +64,31 @@ implementation and verification details from evidence. If no usable map exists, 
 customer-visible journeys and custom behavior, propose a ledger, and resolve choices that
 materially change scope before implementing them.
 
-In component or capability mode, the user's focused request plus any matching map entry is
-sufficient. Do not require creation of a program ledger before implementation.
+In focused mode, the user's request plus any matching map entry is sufficient. Do not
+require creation of a program ledger before implementation.
 
-Verify from repository, deployment, or runtime evidence and record the parts of the
-baseline relevant to the selected scope:
+Verify from repository or available runtime evidence and record the parts of the baseline
+relevant to the selected scope:
 
-- coexistence and cutover topology: how each storefront is activated, which traffic still
-  reaches ScandiPWA, shared contracts, and the rollback boundary
+- coexistence topology: whether ScandiPWA remains active and which contracts, services,
+  data, configuration, sessions, content, or integrations it shares with the Hyvä target
 - Magento, ScandiPWA, Hyvä Theme, Alpine, and Tailwind versions
 - target child theme and parent, including CSP-compatible versus legacy theme
 - Hyvä Checkout, Hyvä UI, Hyvä Commerce CMS, and compatibility-module availability
 - store views, locales, currencies, customer groups, and relevant feature flags
-- deployment and command wrappers already used by the repository
+- build, test, and local-development commands already used by the repository
 
-Do not infer live traffic activation, shared operational contracts, or rollback facts.
-Record unknowns explicitly. They may allow target implementation to continue, but they
-block an operational cutover until verified.
+Do not infer whether ScandiPWA has been retired or whether a shared dependency is safe to
+change. Record unknowns explicitly. They may allow target implementation to continue,
+but they do not authorize destructive source changes.
 
-Unless the user confirms that ScandiPWA is retired and authorizes cutover work, treat
-every running source storefront as an active consumer. During any target implementation
-while ScandiPWA remains active, do not delete, disable, or incompatibly change ScandiPWA
-code, shared GraphQL or service contracts, Magento modules, configuration, routing,
-cookies or sessions, customer-data sections, cache behavior, or content. If the target
-requires a shared contract change, keep it backward compatible and verify both
-storefronts. Record removal candidates for an authorized cutover instead of removing them
-opportunistically.
+Unless the user confirms that ScandiPWA is retired, treat it as an active consumer. During
+target implementation, do not delete, disable, or incompatibly change ScandiPWA code,
+shared GraphQL or service contracts, Magento modules, configuration, routing, cookies or
+sessions, customer-data sections, cache behavior, or content. If the target requires a
+shared contract change, keep it backward compatible and verify both storefronts. Record
+source-removal candidates for the team responsible for retirement instead of removing
+them opportunistically.
 
 ## Trace behavior, not just files
 
@@ -123,12 +122,12 @@ Before custom-building a capability, search in this order:
 5. A small custom implementation is required.
 
 Classify any ScandiPWA-only API, module, package, configuration, content, infrastructure,
-or integration that the target no longer needs as a retention or retirement candidate.
-Do not remove it during ordinary component or target implementation work.
+or integration that the target no longer needs as a source-removal candidate. Do not
+remove it as part of migration implementation.
 
 ## Plan the active unit
 
-In component or capability mode, define the component boundary and only the immediate
+In focused mode, define the component or capability boundary and only the immediate
 dependencies required to make it work in its target integration point. In
 migration-program mode, build a dependency order from the ledger. Implement shared theme
 foundations and cross-cutting integrations before dependent page features, but avoid a
@@ -139,7 +138,8 @@ Each active unit should deliver one coherent customer-visible behavior and inclu
 - map or ledger IDs when present, plus source evidence
 - exact target behavior and explicit non-goals
 - chosen Magento/Hyvä pattern and affected modules or theme areas
-- dependencies, data and configuration requirements, and rollback boundary
+- dependencies, data and configuration requirements, compatibility constraints, and a
+  safe way to reverse the code change when appropriate
 - focused verification, including the source-versus-target comparison when available
 
 High-risk journeys such as authentication, cart, checkout, payments, pricing, customer
@@ -174,9 +174,9 @@ missing. Inspect the installed Hyvä source and repository conventions and proce
 when they provide sufficient evidence for a safe implementation; otherwise stop at the
 affected task rather than inventing guidance.
 
-Keep changes scoped to the active unit. Preserve unrelated work, and do not commit,
-push, deploy, install paid packages, or mutate shared environments unless the user has
-authorized that action.
+Keep changes scoped to the active unit and preserve unrelated work. Do not deploy releases
+or mutate shared environments. Do not commit, push, or install paid packages unless the
+user has authorized that action.
 
 ## Scale with agents only when useful
 
@@ -190,17 +190,13 @@ completion status. An optional independent verification agent may perform read-o
 source-versus-target journey checks. Do not parallelize tightly coupled checkout, cart,
 customer-state, or shared-theme changes without explicit file and contract boundaries.
 
-## Gate cutover and retirement
+## Respect the operational boundary
 
-In migration-program mode, read
-[`references/cutover.md`](references/cutover.md) only when the request includes a traffic
-switch, source retirement, or obsolete-dependency cleanup. Authorization to plan or
-implement the migration does not authorize an operational cutover or cleanup.
-
-Keep target readiness, cutover readiness, cutover execution, rollback observation, and
-retirement cleanup as distinct evidence-backed states. Do not claim program completion
-while an in-scope deferred item remains a cutover blocker, the operational switch is
-unapproved or unverified, or required cleanup has not been verified.
+This skill implements and verifies the Hyvä target. It does not deploy releases, switch
+traffic, retire ScandiPWA, remove source dependencies, or perform production cutover and
+observation. Record operational dependencies and source-removal candidates for the team
+responsible for release and retirement. Migration implementation does not authorize
+those actions.
 
 ## Verify equivalence and target quality
 
@@ -238,24 +234,28 @@ confirms the criteria or accepts the recorded residual parity risk.
 
 ## Finish or hand off
 
-In component or capability mode, the unit is complete only when its acceptance criteria
-and containing integration point pass with evidence and any matching map entry is updated
-or handed off. If only provisional criteria were available, report the narrower status
-until an authorized owner accepts them or the residual risk. Do not make program-level
-completion claims.
+In focused mode, the unit is complete only when its acceptance criteria and containing
+integration point pass with evidence and any matching map entry is updated or handed off.
+If only provisional criteria were available, report the narrower status until an
+authorized owner accepts them or the residual risk. Do not make program-level completion
+claims.
 
-In migration-program mode, call the target `target-ready` when every rebuild/adapt item is
-verified, every omission is approved, shared journeys pass, and deferrals are either
-explicitly removed from the cutover scope or remain named blockers. If operational
-cutover is not requested, finish at that status. Claim `program-complete` only when any
-in-scope cutover and retirement work also satisfies
-[`references/cutover.md`](references/cutover.md).
+In migration-program mode, report that all in-scope migration work is implemented and
+verified only when every rebuild or adapt item passes its acceptance criteria, every
+omission is approved, shared journeys pass, and every unresolved or deferred item is
+named. This statement describes the Hyvä implementation only; it does not indicate
+deployment, production readiness, traffic cutover, or ScandiPWA retirement.
 
-At each handoff, report the applicable subset of:
+At each handoff, always report:
 
-- component, capability, slice, and map or ledger items completed
+- the active component, capability, slice, and map or ledger IDs
+- installed Hyvä AI skills used for the target work, including any missing specialization
+  that limited implementation or verification
+- verification commands and journey evidence, including checks that could not run
+
+Also report the applicable subset of:
+
 - target behavior delivered and important implementation decisions
-- verification commands and journey evidence
 - blocked, deferred, omitted, or newly discovered items with owners or required decisions
 - remaining ScandiPWA-specific dependencies and why they remain
 - the next dependency-ready unit when broader work remains

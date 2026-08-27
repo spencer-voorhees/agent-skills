@@ -90,7 +90,7 @@ and focused guidance for:
 - Selecting target-native Magento, PHTML, Alpine, Tailwind, and compatibility patterns
 - Routing bounded target work to the relevant installed Hyvä AI skills
 - Requiring source-versus-target evidence before migration items are complete
-- Separating target readiness from authorized cutover and source-retirement cleanup
+- Keeping deployment, traffic cutover, and source retirement outside the skill's scope
 
 ## Installation
 
@@ -134,6 +134,6 @@ directory contains only the optional AGENTS routing snippet.
 
 The engineering skills discover and preserve each repository's established requirements,
 architecture, decision, and handoff conventions rather than scaffolding a universal
-documentation layout. The migration package preserves the project's approved scope map
-and keeps component implementation, program readiness, cutover, and retirement evidence
-separate. Installing either package does not configure artifact destinations.
+documentation layout. The migration package preserves the project's approved scope map,
+supports focused and program-wide implementation, and stops at evidence-backed target
+verification. Installing either package does not configure artifact destinations.

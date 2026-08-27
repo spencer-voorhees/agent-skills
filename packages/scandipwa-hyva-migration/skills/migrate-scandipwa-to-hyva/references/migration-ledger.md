@@ -4,8 +4,8 @@ Use the project's existing scope map as the durable source when one exists. Do n
 it into this exact representation. Maintain these fields in the map, a linked artifact,
 or a temporary working view so decisions and completion remain auditable.
 
-For a component-level invocation, read and update only the matching row and directly
-linked dependencies. If no matching row exists, use the focused user request as the local
+For a focused invocation, read and update only the matching row and directly linked
+dependencies. If no matching row exists, use the focused user request as the local
 contract and report the missing map entry; do not normalize unrelated migration scope.
 
 ## Minimum fields
@@ -26,7 +26,8 @@ contract and report the missing map entry; do not normalize unrelated migration 
 | Evidence | Target files, tests, command results, screenshots, URLs, and review notes |
 
 Useful optional fields include owner, estimate, store-view coverage, test fixtures,
-analytics events, content migration, release dependency, rollback note, and decision date.
+analytics events, content migration, delivery dependency, reversal note, and decision
+date.
 
 ## Status model
 
@@ -40,14 +41,14 @@ team needs from this compact model:
 | `ready` | Acceptance criteria and target approach are sufficient to implement |
 | `implementing` | Target work has started |
 | `blocked` | A named dependency or decision prevents progress |
-| `verified` | Target acceptance criteria pass with named evidence; this alone does not imply source parity or operational cutover |
+| `verified` | Target acceptance criteria pass with named evidence; this alone does not imply source parity, deployment, or production readiness |
 | `omitted` | Omission is approved and rationale is recorded |
 | `deferred` | Deferral, owner or trigger, and impact are recorded |
 
 Do not mark an item verified merely because its files were ported or the application
 builds. Do not use `omitted` to hide a failed or unresolved implementation.
-An in-scope deferred item remains a program blocker unless an authorized decision changes
-its cutover scope or disposition.
+An in-scope deferred item prevents reporting all migration work as implemented and
+verified unless an authorized decision removes it from scope or changes its disposition.
 
 ## Normalizing an existing map
 
@@ -65,6 +66,6 @@ When source tracing reveals an unscoped dependency:
 4. request a decision when it changes product scope, cost, data handling, or a public
    contract.
 
-When program work includes traffic cutover or source retirement, maintain the lifecycle
-and removal register described in [`cutover.md`](cutover.md) instead of overloading an
-item's target implementation status.
+Record obsolete ScandiPWA code, dependencies, configuration, and integrations as removal
+candidates for the team responsible for source retirement. Do not overload target
+implementation status or remove those items as part of this skill.
